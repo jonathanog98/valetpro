@@ -1,38 +1,43 @@
-function canUseSession() {
-  try { sessionStorage.setItem('_t','1'); sessionStorage.removeItem('_t'); return true; } catch(e) { return false; }
-}
-const sess = canUseSession() ? sessionStorage : localStorage;
+import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.43.4/+esm';
 
-(function ensureSeedAdmin() {
-  const users = JSON.parse(localStorage.getItem('users') || '[]');
-  if (!users.some(u => u.email === 'admin@valetpro.test')) {
-    users.push({ name: 'Administrador', email: 'admin@valetpro.test', pass: 'admin', role: 'Admin' });
-    localStorage.setItem('users', JSON.stringify(users));
-  }
-})();
+const supabase = createClient(
+  'https://hiaeuuieafihkjbichlv.supabase.co',
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhpYWV1dWllYWZpaGtqYmljaGx2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTUxMDg3MDUsImV4cCI6MjA3MDY4NDcwNX0.uUnyclcK-THabxwqQ-eLSoZ8ehOrVMBoyETJZ-Dkbjo'
+);
 
-function getUsers() {
-  const raw = localStorage.getItem('users');
-  return raw ? JSON.parse(raw) : [];
-}
-
-document.getElementById('login-form').addEventListener('submit', function(e) {
+document.getElementById('login-form').addEventListener('submit', async function(e) {
   e.preventDefault();
   const email = document.getElementById('email').value.trim().toLowerCase();
   const pass = document.getElementById('password').value;
-  const users = getUsers();
-  const match = users.find(u => u.email === email && u.pass === pass);
-  if (match) {
-    sess.setItem('usuario', match.email);
-    sess.setItem('nombre', match.name || '');
-    sess.setItem('rol', match.role);
-    window.location.href = 'index.html';
-  } else {
+
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email,
+    password: pass
+  });
+
+  if (error) {
     const msg = document.getElementById('error-msg');
     if (msg) msg.style.display = 'block';
+    return;
   }
+
+  // Obtener el rol desde la tabla personalizada
+  const { data: roles, error: roleErr } = await supabase.from('current_user_roles').select('role_code').limit(1);
+  const rol = roles?.[0]?.role_code;
+
+  if (!rol || roleErr) {
+    alert('No se pudo obtener el rol del usuario.');
+    await supabase.auth.signOut();
+    return;
+  }
+
+  sessionStorage.setItem('usuario', email);
+  sessionStorage.setItem('rol', rol);
+
+  window.location.href = 'index.html';
 });
 
+// Ocultar mensaje de error al escribir nuevamente
 ['email','password'].forEach(id => {
   const el = document.getElementById(id);
   if (el) el.addEventListener('input', () => {

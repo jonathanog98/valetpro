@@ -1,42 +1,23 @@
-function canUseSession() {
-  try { sessionStorage.setItem('_t','1'); sessionStorage.removeItem('_t'); return true; } catch(e) { return false; }
-}
-const sess = canUseSession() ? sessionStorage : localStorage;
 
-(function ensureSeedAdmin() {
-  const users = JSON.parse(localStorage.getItem('users') || '[]');
-  if (!users.some(u => u.email === 'admin@valetpro.test')) {
-    users.push({ name: 'Administrador', email: 'admin@valetpro.test', pass: 'admin', role: 'Admin' });
-    localStorage.setItem('users', JSON.stringify(users));
-  }
-})();
+import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
 
-function getUsers() {
-  const raw = localStorage.getItem('users');
-  return raw ? JSON.parse(raw) : [];
-}
+const supabase = createClient(
+  'https://hiaeuuieafihkjbichlv.supabase.co',
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhpYWV1dWllYWZpaGtqYmljaGx2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTUxMDg3MDUsImV4cCI6MjA3MDY4NDcwNX0.o5I8ebBMKsnHFCtGzL7AulWmLaV6RJj6I1qFxyU8ymc'
+);
 
-document.getElementById('login-form').addEventListener('submit', function(e) {
+document.getElementById('login-form').addEventListener('submit', async function (e) {
   e.preventDefault();
   const email = document.getElementById('email').value.trim().toLowerCase();
-  const pass = document.getElementById('password').value;
-  const users = getUsers();
-  const match = users.find(u => u.email === email && u.pass === pass);
-  if (match) {
-    sess.setItem('usuario', match.email);
-    sess.setItem('nombre', match.name || '');
-    sess.setItem('rol', match.role);
-    window.location.href = 'index.html';
-  } else {
-    const msg = document.getElementById('error-msg');
-    if (msg) msg.style.display = 'block';
-  }
-});
+  const password = document.getElementById('password').value;
 
-['email','password'].forEach(id => {
-  const el = document.getElementById(id);
-  if (el) el.addEventListener('input', () => {
-    const msg = document.getElementById('error-msg');
-    if (msg) msg.style.display = 'none';
-  });
+  const { error } = await supabase.auth.signInWithPassword({ email, password });
+
+  if (error) {
+    document.getElementById('error-msg').style.display = 'block';
+    return;
+  }
+
+  // Redirigir si el login fue exitoso
+  window.location.href = 'index.html';
 });

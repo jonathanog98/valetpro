@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>ValetPro — Administración de Usuarios</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap');
+    body { font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial; margin:0; background:#f2f2f2; color:#1a1a1a; }
+    .container { max-width: 900px; margin: 24px auto; background:#fff; border-radius:8px; padding:24px; box-shadow:0 2px 12px rgba(0,0,0,.06); }
+    header { display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; gap: 8px; flex-wrap: wrap; }
+    h1 { margin:0; font-size:22px; }
+    button { padding:8px 12px; border:0; border-radius:6px; background:#274c77; color:#fff; cursor:pointer; }
+    button:hover { background:#19365a; }
+    form { display:grid; grid-template-columns: 1fr 1fr 1fr 1fr auto; gap:12px; margin-bottom:18px; }
+    input, select { padding:8px; border:1px solid #ccc; border-radius:6px; background:#fafafa; }
+    table { width:100%; border-collapse:collapse; background:#fff; }
+    th, td { padding:10px; border-bottom:1px solid #e9e9e9; text-align:left; vertical-align:middle; }
+    th { background:#f8f8f8; font-weight:600; }
+    .muted { color:#666; font-size:13px; }
+    .row-actions button { margin-right:6px; }
+    .right { text-align:right; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>Administración de Usuarios</h1>
+      <div>
+        <span id="admin-user" class="muted"></span>
+        <button onclick="window.location.href='index.html'">Regresar</button>
+        <button onclick="logout()">Cerrar sesión</button>
+      </div>
+    </header>
+
+    <section>
+      <h2 style="margin:0 0 12px 0; font-size:18px;">Crear nuevo usuario</h2>
+      <form id="create-user-form">
+        <input type="text"     id="new-name"  placeholder="Nombre completo" required />
+        <input type="email"    id="new-email" placeholder="Email (login)" required />
+        <input type="password" id="new-pass"  placeholder="Contraseña temporal" required />
+        <select id="new-role" required>
+          <option value="">Rol…</option>
+          <option value="Cajero">Cajero</option>
+          <option value="Jockey">Jockey</option>
+          <option value="Loaners">Loaners</option>
+          <option value="Transportación">Transportación</option>
+          <option value="Admin">Admin</option>
+        </select>
+        <button type="submit">Crear</button>
+      </form>
+      <p class="muted">El usuario iniciará con esta contraseña y podrá cambiarla cuando implementemos recuperación.</p>
+    </section>
+
+    <section style="margin-top:24px;">
+      <h2 style="margin:0 0 12px 0; font-size:18px;">Usuarios existentes</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Nombre</th>
+            <th>Email</th>
+            <th>Rol</th>
+            <th class="right">Acciones</th>
+          </tr>
+        </thead>
+        <tbody id="users-tbody"></tbody>
+      </table>
+    </section>
+  </div>
+
+  <script src="admin.js" defer></script>
+</body>
+</html>

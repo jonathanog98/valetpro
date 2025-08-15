@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ValetPro</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>ValetPro</h1>
+      <div style="display:flex; gap:8px; flex-wrap: wrap; justify-content:flex-end;">
+        <span id="user-info" style="margin-right: 4px;"></span>
+        <button id="admin-btn" style="display:none;" onclick="location.href='admin.html'">Administración</button>
+        <button onclick="logout()">Cerrar sesión</button>
+      </div>
+    </header>
+
+    <!-- Formulario -->
+    <form id="pickup-form">
+      <label>Propósito
+        <select id="proposito" required>
+          <option value="Recogiendo">Recogiendo</option>
+          <option value="Loaner">Loaner</option>
+          <option value="Transportación">Transportación</option>
+          <option value="Waiter">Waiter</option>
+        </select>
+      </label>
+      <label>VIN (opcional)
+        <input type="text" id="vin" maxlength="17" />
+      </label>
+      <label>TAG <input type="text" id="tag" required /></label>
+      <label>Modelo <input type="text" id="modelo" required /></label>
+      <label>Color <input type="text" id="color" required /></label>
+      <label>Asesor <input type="text" id="asesor" required /></label>
+      <label>Descripción <input type="text" id="descripcion" /></label>
+      <div id="extra-fields"></div>
+      <button type="submit">Agregar</button>
+    </form>
+
+    <!-- Clientes en Sala (WAITER) -->
+    <div class="table-wrapper">
+      <h2>Clientes en Sala</h2>
+      <table id="tabla-waiter">
+        <thead>
+          <tr>
+            <th>Hora</th>
+            <th>TAG</th>
+            <th>Modelo</th>
+            <th>Color</th>
+            <th>Asesor</th>
+            <th>Descripción</th>
+            <th>Status</th>
+            <th>Promise Time</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+
+    <!-- Recogiendo -->
+    <div class="table-wrapper">
+      <h2>Recogiendo</h2>
+      <table id="tabla-recogiendo">
+        <thead>
+          <tr>
+            <th>Hora</th><th>TAG</th><th>Modelo</th><th>Color</th><th>Asesor</th>
+            <th>Descripción</th><th>Status Cajero</th><th>Status Jockey</th><th>Acciones</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+
+    <!-- Loaner -->
+    <div class="table-wrapper">
+      <h2>Loaner</h2>
+      <table id="tabla-loaner">
+        <thead>
+          <tr><th>Hora</th><th>Nombre Cliente</th><th>Acciones</th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+
+    <!-- Transporte -->
+    <div class="table-wrapper">
+      <h2>Transportación</h2>
+      <table id="tabla-transporte">
+        <thead>
+          <tr>
+            <th>Hora</th><th>Nombre</th><th>Teléfono</th><th>Dirección</th><th>Personas</th>
+            <th>Asignado</th><th>Acciones</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+
+    <!-- Entregados -->
+    <div class="table-wrapper">
+      <h2>Autos Entregados</h2>
+      <div class="meta-row">
+        <span id="promedio-espera">Promedio de espera: —</span>
+        <button id="btn-borrar-entregados" style="display:none;" onclick="borrarEntregados()">Borrar entregados</button>
+        <span>Se limpia automáticamente a medianoche</span>
+      </div>
+      <table id="tabla-entregados">
+        <thead>
+          <tr>
+            <th>Tag</th><th>Modelo</th><th>Color</th><th>Asesor</th>
+            <th>Hora Registro</th><th>Hora Entrega</th><th>Tiempo Espera</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+  <script src="script.js" defer></script>
+</body>
+</html>

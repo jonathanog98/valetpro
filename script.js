@@ -5,42 +5,30 @@ const supabase = createClient(
   'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhpYWV1dWllYWZpaGtqYmljaGx2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTUxMDg3MDUsImV4cCI6MjA3MDY4NDcwNX0.uUnyclcK-THabxwqQ-eLSoZ8ehOrVMBoyETJZ-Dkbjo'
 );
 
-document.getElementById('login-form').addEventListener('submit', async function(e) {
-  e.preventDefault();
-  const email = document.getElementById('email').value.trim().toLowerCase();
-  const pass = document.getElementById('password').value;
+(async () => {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) return (window.location.href = 'login.html');
 
-  const { data: sessionData, error: loginError } = await supabase.auth.signInWithPassword({
-    email,
-    password: pass
-  });
-
-  if (loginError) {
-    document.getElementById('error-msg').style.display = 'block';
-    return;
-  }
-
-  const { data: roles, error: roleErr } = await supabase
-    .from('current_user_roles')
-    .select('role_code')
-    .limit(1);
-
+  const { data: roles } = await supabase.from('current_user_roles').select('role_code');
   const rol = roles?.[0]?.role_code;
 
-  if (!rol || roleErr) {
-    alert('No se pudo obtener el rol.');
-    await supabase.auth.signOut();
-    return;
+  if (!rol) {
+    alert('No se encontró rol para el usuario.');
+    return (window.location.href = 'login.html');
   }
 
-  sessionStorage.setItem('usuario', email);
-  sessionStorage.setItem('rol', rol);
-  window.location.href = 'index.html';
-});
+  document.getElementById('rol-label').textContent = rol;
 
-['email', 'password'].forEach(id => {
-  const el = document.getElementById(id);
-  if (el) el.addEventListener('input', () => {
-    document.getElementById('error-msg').style.display = 'none';
+  // Mostrar u ocultar elementos según el rol
+  document.querySelectorAll('[data-role]').forEach(el => {
+    if (el.dataset.role.split(',').includes(rol)) {
+      el.style.display = '';
+    } else {
+      el.style.display = 'none';
+    }
   });
+})();
+
+document.getElementById('logout-btn')?.addEventListener('click', () => {
+  supabase.auth.signOut().then(() => (window.location.href = 'login.html'));
 });

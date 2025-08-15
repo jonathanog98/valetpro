@@ -5,7 +5,7 @@ const supabase = createClient(
   'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhpYWV1dWllYWZpaGtqYmljaGx2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTUxMDg3MDUsImV4cCI6MjA3MDY4NDcwNX0.uUnyclcK-THabxwqQ-eLSoZ8ehOrVMBoyETJZ-Dkbjo'
 );
 
-(async () => {
+document.addEventListener('DOMContentLoaded', async () => {
   const { data: { session } } = await supabase.auth.getSession();
   if (!session) return (window.location.href = 'login.html');
 
@@ -27,29 +27,33 @@ const supabase = createClient(
       el.style.display = 'none';
     }
   });
-})();
 
-document.getElementById('pickup-form')?.addEventListener('submit', async function(e) {
-  e.preventDefault();
+  // ✅ Ahora el botón Agregar funcionará correctamente
+  const form = document.getElementById('pickup-form');
+  if (form) {
+    form.addEventListener('submit', async function(e) {
+      e.preventDefault();
 
-  const data = {
-    proposito: document.getElementById('proposito').value,
-    vin: document.getElementById('vin').value.trim(),
-    tag: document.getElementById('tag').value.trim(),
-    modelo: document.getElementById('modelo').value.trim(),
-    color: document.getElementById('color').value.trim(),
-    asesor: document.getElementById('asesor').value.trim(),
-    descripcion: document.getElementById('descripcion').value.trim(),
-    timestamp: new Date().toISOString()
-  };
+      const data = {
+        proposito: document.getElementById('proposito').value,
+        vin: document.getElementById('vin').value.trim(),
+        tag: document.getElementById('tag').value.trim(),
+        modelo: document.getElementById('modelo').value.trim(),
+        color: document.getElementById('color').value.trim(),
+        asesor: document.getElementById('asesor').value.trim(),
+        descripcion: document.getElementById('descripcion').value.trim(),
+        timestamp: new Date().toISOString()
+      };
 
-  const { error } = await supabase.from('pickups').insert([data]);
+      const { error } = await supabase.from('pickups').insert([data]);
 
-  if (error) {
-    alert('Error al guardar pickup: ' + error.message);
-  } else {
-    alert('Pickup registrado correctamente.');
-    this.reset();
+      if (error) {
+        alert('Error al guardar pickup: ' + error.message);
+      } else {
+        alert('Pickup registrado correctamente.');
+        this.reset();
+      }
+    });
   }
 });
 

@@ -1,12 +1,14 @@
+
 <!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>ValetPro</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
+<header><span id="rol-label"></span> <button onclick="logout()">Cerrar sesión</button></header>
   <div class="container">
     <header>
       <h1>ValetPro</h1>
@@ -24,6 +26,7 @@
           <option value="Recogiendo">Recogiendo</option>
           <option value="Loaner">Loaner</option>
           <option value="Transportación">Transportación</option>
+          <option value="Waiter">Waiter</option>
         </select>
       </label>
       <label>VIN (opcional)
@@ -37,6 +40,26 @@
       <div id="extra-fields"></div>
       <button type="submit">Agregar</button>
     </form>
+
+    <!-- Clientes en Sala (WAITER) -->
+    <div class="table-wrapper">
+      <h2>Clientes en Sala</h2>
+      <table id="tabla-waiter">
+        <thead>
+          <tr>
+            <th>Hora</th>
+            <th>TAG</th>
+            <th>Modelo</th>
+            <th>Color</th>
+            <th>Asesor</th>
+            <th>Descripción</th>
+            <th>Status</th>
+            <th>Promise Time</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
 
     <!-- Recogiendo -->
     <div class="table-wrapper">
@@ -97,6 +120,6 @@
     </div>
   </div>
 
-  <script src="script.js" defer></script>
+  <script src="script.js" type="module" defer></script>
 </body>
 </html>

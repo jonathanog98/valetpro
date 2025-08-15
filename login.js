@@ -21,7 +21,6 @@ document.getElementById('login-form').addEventListener('submit', async function(
     return;
   }
 
-  // Obtener el rol desde la tabla personalizada
   const { data: roles, error: roleErr } = await supabase.from('current_user_roles').select('role_code').limit(1);
   const rol = roles?.[0]?.role_code;
 
@@ -37,7 +36,6 @@ document.getElementById('login-form').addEventListener('submit', async function(
   window.location.href = 'index.html';
 });
 
-// Ocultar mensaje de error al escribir nuevamente
 ['email','password'].forEach(id => {
   const el = document.getElementById(id);
   if (el) el.addEventListener('input', () => {

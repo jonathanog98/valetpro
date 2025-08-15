@@ -1,11 +1,26 @@
+
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap');
+
+:root {
+  --bg: #ffffff;
+  --fg: #1a1a1a;
+  --accent: #274c77;
+  --accent-hover: #19365a;
+  --muted: #777;
+  --border: #e1e1e1;
+  --input-bg: #f9f9f9;
+  --input-border: #ccc;
+  --input-focus: #274c77;
+  --table-header: #f0f0f0;
+  --danger: #c0392b;
+}
 
 body {
   font-family: 'Inter', sans-serif;
+  background: var(--bg);
+  color: var(--fg);
   margin: 0;
-  background-color: #f2f2f2;
   padding: 40px;
-  color: #1a1a1a;
 }
 
 .container {
@@ -20,7 +35,7 @@ body {
 h1 {
   font-size: 24px;
   font-weight: 600;
-  border-bottom: 2px solid #e1e1e1;
+  border-bottom: 2px solid var(--border);
   padding-bottom: 10px;
   margin-bottom: 25px;
 }
@@ -29,7 +44,7 @@ h2 {
   font-size: 18px;
   font-weight: 600;
   margin: 30px 0 15px;
-  border-bottom: 1px solid #e1e1e1;
+  border-bottom: 1px solid var(--border);
   padding-bottom: 5px;
 }
 
@@ -46,22 +61,19 @@ form label {
   font-size: 14px;
 }
 
-form .full {
-  grid-column: span 2;
-}
-
 input, select, textarea {
   margin-top: 6px;
-  padding: 8px 10px;
+  padding: 10px;
   font-size: 14px;
-  border: 1px solid #ccc;
+  border: 1px solid var(--input-border);
   border-radius: 6px;
-  background-color: #fafafa;
+  background-color: var(--input-bg);
+  color: var(--fg);
 }
 
 input:focus, select:focus, textarea:focus {
   outline: none;
-  border-color: #5577dd;
+  border-color: var(--input-focus);
   background-color: #fff;
 }
 
@@ -69,7 +81,7 @@ button {
   padding: 10px 16px;
   font-size: 14px;
   border: none;
-  background-color: #274c77;
+  background-color: var(--accent);
   color: white;
   border-radius: 6px;
   cursor: pointer;
@@ -77,15 +89,15 @@ button {
 }
 
 button:hover {
-  background-color: #19365a;
+  background-color: var(--accent-hover);
 }
 
 .table-wrapper {
   background: #fff;
   border-radius: 6px;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.08);
   padding: 15px 20px;
   margin-top: 15px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.08);
 }
 
 table {
@@ -97,51 +109,23 @@ table {
 th, td {
   text-align: left;
   padding: 10px;
-  border-bottom: 1px solid #e1e1e1;
+  border-bottom: 1px solid var(--border);
 }
 
 th {
-  background-color: #f9f9f9;
+  background-color: var(--table-header);
   font-weight: 600;
 }
 
-td {
-  background-color: white;
+.muted {
+  color: var(--muted);
+  font-size: 13px;
 }
 
-/* === Blinks añadidos === */
-
-/* Parpadeo para elementos con más de 5 minutos de espera */
-@keyframes blink {
-  0%   { background-color: #ffffcc; }
-  50%  { background-color: #ffffff; }
-  100% { background-color: #ffffcc; }
-}
-.blink {
-  animation: blink 1s step-start infinite;
+.row-actions button {
+  margin-right: 6px;
 }
 
-/* Parpadeo rojo para Promise Time cercano */
-@keyframes blinkRed {
-  0%   { background-color: #ffe6e6; }
-  50%  { background-color: #ffffff; }
-  100% { background-color: #ffe6e6; }
-}
-.blink-red {
-  animation: blinkRed 1s step-start infinite;
-}
-
-/* Soporte visual para datetime-local */
-input[type="datetime-local"] {
-  padding: 8px 10px;
-  font-size: 14px;
-  border: 1px solid #ccc;
-  border-radius: 6px;
-  background-color: #fafafa;
-}
-
-input[type="datetime-local"]:focus {
-  outline: none;
-  border-color: #5577dd;
-  background-color: #fff;
+.right {
+  text-align: right;
 }

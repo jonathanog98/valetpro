@@ -1,42 +1,70 @@
-function canUseSession() {
-  try { sessionStorage.setItem('_t','1'); sessionStorage.removeItem('_t'); return true; } catch(e) { return false; }
-}
-const sess = canUseSession() ? sessionStorage : localStorage;
+// login.js
+import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm";
 
-(function ensureSeedAdmin() {
-  const users = JSON.parse(localStorage.getItem('users') || '[]');
-  if (!users.some(u => u.email === 'admin@valetpro.test')) {
-    users.push({ name: 'Administrador', email: 'admin@valetpro.test', pass: 'admin', role: 'Admin' });
-    localStorage.setItem('users', JSON.stringify(users));
-  }
-})();
+// Supabase config
+const supabase = createClient(
+  "https://sqllpksunzuyzkzgmhuo.supabase.co",
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNxbGxwa3N1bnp1eXpremdtaHVvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTUyNjIzNjQsImV4cCI6MjA3MDgzODM2NH0.Oesm9_iFmdJRQORSWL2AQUy3ynQrQX7H0UY5YA2Ow7A"
+);
 
-function getUsers() {
-  const raw = localStorage.getItem('users');
-  return raw ? JSON.parse(raw) : [];
-}
+const form = document.getElementById("login-form");
+const btn = document.getElementById("login-btn");
+const err = document.getElementById("error-msg");
 
-document.getElementById('login-form').addEventListener('submit', function(e) {
-  e.preventDefault();
-  const email = document.getElementById('email').value.trim().toLowerCase();
-  const pass = document.getElementById('password').value;
-  const users = getUsers();
-  const match = users.find(u => u.email === email && u.pass === pass);
-  if (match) {
-    sess.setItem('usuario', match.email);
-    sess.setItem('nombre', match.name || '');
-    sess.setItem('rol', match.role);
-    window.location.href = 'index.html';
+function showError(message) {
+  if (err) {
+    err.textContent = message;
+    err.style.display = "block";
   } else {
-    const msg = document.getElementById('error-msg');
-    if (msg) msg.style.display = 'block';
+    alert(message);
   }
+}
+
+form?.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  err.style.display = "none";
+  btn.disabled = true;
+  btn.textContent = "Ingresando…";
+
+  const email = document.getElementById("email").value.trim().toLowerCase();
+  const password = document.getElementById("password").value;
+
+  if (!email || !password) {
+    showError("Correo y contraseña son obligatorios.");
+    btn.disabled = false;
+    btn.textContent = "Ingresar";
+    return;
+  }
+
+  const { error, data } = await supabase.auth.signInWithPassword({ email, password });
+
+  if (error) {
+    showError("Correo o contraseña incorrectos.");
+    btn.disabled = false;
+    btn.textContent = "Ingresar";
+    return;
+  }
+
+  const { data: roleData, error: roleError } = await supabase
+    .from("current_user_roles")
+    .select("role_code")
+    .single();
+
+  if (roleError || !roleData?.role_code) {
+    showError("No se pudo obtener el rol del usuario.");
+    btn.disabled = false;
+    btn.textContent = "Ingresar";
+    return;
+  }
+
+  sessionStorage.setItem("rol", roleData.role_code);
+  sessionStorage.setItem("usuario", email);
+
+  window.location.href = "index.html";
 });
 
-['email','password'].forEach(id => {
-  const el = document.getElementById(id);
-  if (el) el.addEventListener('input', () => {
-    const msg = document.getElementById('error-msg');
-    if (msg) msg.style.display = 'none';
-  });
-});
+["email", "password"].forEach((id) =>
+  document.getElementById(id)?.addEventListener("input", () => {
+    err.style.display = "none";
+  })
+);

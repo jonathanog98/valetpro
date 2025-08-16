@@ -1,34 +1,139 @@
-import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.43.4/+esm'
+import { supabase } from './lib/supabase.js';
 
-const supabase = createClient(
-  'https://hiaeuuieafihkjbichlv.supabase.co',
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhpYWV1dWllYWZpaGtqYmljaGx2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTUxMDg3MDUsImV4cCI6MjA3MDY4NDcwNX0.uUnyclcK-THabxwqQ-eLSoZ8ehOrVMBoyETJZ-Dkbjo'
-);
+const $ = (id) => document.getElementById(id);
 
-(async () => {
-  const { data: { session } } = await supabase.auth.getSession();
-  if (!session) return (window.location.href = 'login.html');
+// DOM elements
+const form = $('pickup-form');
+const roleLabel = $('rol-label');
+const userInfo = $('user-info');
+const adminBtn = $('admin-btn');
+const resultCount = $('result-count');
 
-  const { data: roles } = await supabase.from('current_user_roles').select('role_code');
-  const rol = roles?.[0]?.role_code;
+const propositoInput = $('proposito');
+const customPurposeWrapper = $('custom-purpose-wrapper');
+const customDetailInput = $('custom-detail');
 
-  if (!rol) {
-    alert('No se encontró rol para el usuario.');
-    return (window.location.href = 'login.html');
+const sections = {
+  Recogiendo: $('recogiendo-cards'),
+  Loaner: $('loaner-cards'),
+  Sala: $('sala-cards'),
+  Transportación: $('transportacion-cards'),
+};
+
+let currentUser = null;
+
+// Get user and role
+async function getCurrentUserAndRole() {
+  const { data: { user }, error } = await supabase.auth.getUser();
+  if (error || !user) {
+    console.error("Auth error or no user:", error);
+    window.location.href = 'login.html';
+    return null;
   }
 
-  document.getElementById('rol-label').textContent = rol;
+  const { data: roleData, error: roleError } = await supabase
+    .from('current_user_roles')
+    .select('role_code')
+    .maybeSingle();
 
-  // Mostrar u ocultar elementos según el rol
-  document.querySelectorAll('[data-role]').forEach(el => {
-    if (el.dataset.role.split(',').includes(rol)) {
-      el.style.display = '';
-    } else {
-      el.style.display = 'none';
-    }
+  if (roleError) console.error("Role fetch error:", roleError);
+
+  return { user, role: roleData?.role_code || 'User' };
+}
+
+// Create a pickup card element
+function createCard(pickup) {
+  const div = document.createElement('div');
+  div.className = 'card';
+  div.innerHTML = `
+    <h4>${pickup.proposito}</h4>
+    <p><strong>TAG:</strong> ${pickup.tag}</p>
+    <p><strong>Modelo:</strong> ${pickup.modelo}</p>
+    <p><strong>Color:</strong> ${pickup.color}</p>
+    <p><strong>Asesor:</strong> ${pickup.asesor}</p>
+    <p><strong>Descripción:</strong> ${pickup.descripcion}</p>
+  `;
+  return div;
+}
+
+// Load and render pickups
+async function load(userId) {
+  console.log("Loading pickups for user:", userId);
+
+  const { data, error } = await supabase
+    .from('pickups')
+    .select('*')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false });
+
+  console.log("Pickup load result →", { data, error });
+
+  if (error) {
+    console.error('Load error:', error);
+    alert('Error al cargar pickups');
+    return;
+  }
+
+  Object.values(sections).forEach((section) => (section.innerHTML = ''));
+  resultCount.textContent = `${data.length} resultados`;
+
+  data.forEach((pickup) => {
+    const section = sections[pickup.proposito] || sections.Sala;
+    section.appendChild(createCard(pickup));
   });
-})();
+}
 
-document.getElementById('logout-btn')?.addEventListener('click', () => {
-  supabase.auth.signOut().then(() => (window.location.href = 'login.html'));
+// Submit form
+form?.addEventListener('submit', async (e) => {
+  e.preventDefault();
+
+  const proposito = propositoInput.value;
+  const customDetail = customDetailInput.value;
+  const finalPurpose =
+    proposito === 'Otro' && customDetail ? customDetail : proposito;
+
+  const payload = {
+    user_id: currentUser.id,
+    proposito: finalPurpose,
+    vin: $('vin')?.value,
+    tag: $('tag')?.value,
+    modelo: $('modelo')?.value,
+    color: $('color')?.value,
+    asesor: $('asesor')?.value,
+    descripcion: $('descripcion')?.value,
+  };
+
+  console.log("Submitting pickup payload:", payload);
+
+  const { error } = await supabase.from('pickups').insert([payload]);
+
+  if (error) {
+    console.error('Insert error:', error);
+    alert('Error al guardar pickup');
+  } else {
+    form.reset();
+    customPurposeWrapper.style.display = 'none';
+    await load(currentUser.id);
+  }
+});
+
+// Toggle custom purpose input
+propositoInput?.addEventListener('change', () => {
+  customPurposeWrapper.style.display =
+    propositoInput.value === 'Otro' ? 'block' : 'none';
+});
+
+// Init
+document.addEventListener('DOMContentLoaded', async () => {
+  console.log("script.js execution started");
+
+  const auth = await getCurrentUserAndRole();
+  if (!auth) return;
+
+  currentUser = auth.user;
+  userInfo.textContent = auth.user.email;
+  roleLabel.textContent = auth.role;
+  adminBtn.style.display = auth.role === 'Admin' ? 'inline-block' : 'none';
+
+  await load(currentUser.id);
 });

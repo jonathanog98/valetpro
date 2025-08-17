@@ -168,7 +168,7 @@ form?.addEventListener('submit', async (e) => {
     payload.hora = $('hora')?.value || '';
 
 // Send SMS to Twilio via Supabase Edge Function
-await fetch('/functions/v1/send-sms', {
+await fetch('https://sqllpksunzuyzkzgmhuo.functions.supabase.co/send-sms', {
   method: 'POST',
   headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify({ nombre: payload.nombre, hora: payload.hora })

@@ -16,7 +16,7 @@ const sections = {
   Recogiendo: $('recogiendo-cards'),
   Loaner: $('loaner-cards'),
   Sala: $('sala-cards'),
-  Transportación: $('transportacion-cards'),
+  Transportacion: $('transportacion-cards'),
 };
 
 let currentUser = null;
@@ -57,7 +57,7 @@ function updateExtraFields(purpose) {
       <label>Asesor
         <input type="text" id="asesor"/>
       </label>
-      <label>Descripción
+      <label>Descripcion
         <input type="text" id="descripcion"/>
       </label>
     `;
@@ -76,14 +76,11 @@ function updateExtraFields(purpose) {
       <label>Nombre
         <input type="text" id="nombre"/>
       </label>
-      <label>Descripción
-        <input type="text" id="descripcion"/>
-      </label>
       <label>Hora de la Cita
         <input type="time" id="hora"/>
       </label>
     `;
-  } else if (purpose === 'Transportación') {
+  } else if (purpose === 'Transportacion') {
     extraFields.innerHTML = `
       <label>Nombre
         <input type="text" id="nombre"/>
@@ -91,11 +88,8 @@ function updateExtraFields(purpose) {
       <label>Teléfono
         <input type="tel" id="telefono"/>
       </label>
-      <label>Dirección
+      <label>Direccion
         <input type="text" id="direccion"/>
-      </label>
-      <label>Descripción
-        <input type="text" id="descripcion"/>
       </label>
       <label>Cantidad de Pasajeros
         <input type="number" id="pasajeros" min="1"/>
@@ -167,14 +161,11 @@ form?.addEventListener('submit', async (e) => {
     payload.descripcion = $('descripcion')?.value || '';
     payload.hora = $('hora')?.value || '';
 
-// Send SMS to Twilio via Supabase Edge Function
-await fetch('https://sqllpksunzuyzkzgmhuo.functions.supabase.co/send-sms', {
   method: 'POST',
   headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify({ nombre: payload.nombre, hora: payload.hora })
 });
 
-    // TODO: Send SMS via Twilio (requires server endpoint)
   } else if (proposito === 'Transportación') {
     payload.nombre = $('nombre')?.value || '';
     payload.telefono = $('telefono')?.value || '';

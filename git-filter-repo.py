@@ -128,7 +128,6 @@ def date_to_string(dateobj):
                      dateobj.tzinfo.tzname(0)))
 
 def decode(bytestr):
-  'Try to convert bytestr to utf-8 for outputting as an error message.'
   return bytestr.decode('utf-8', 'backslashreplace')
 
 def glob_to_regex(glob_bytestr):
@@ -420,10 +419,8 @@ class MailmapInfo(object):
 class ProgressWriter(object):
   def __init__(self):
     self._last_progress_update = time.time()
-    self._last_message = None
 
   def show(self, msg):
-    self._last_message = msg
     now = time.time()
     if now - self._last_progress_update > .1:
       self._last_progress_update = now
@@ -432,8 +429,6 @@ class ProgressWriter(object):
 
   def finish(self):
     self._last_progress_update = 0
-    if self._last_message:
-      self.show(self._last_message)
     sys.stdout.write("\n")
 
 class _IDs(object):
@@ -740,11 +735,9 @@ class Commit(_GitElementWithId):
   def __init__(self, branch,
                author_name,    author_email,    author_date,
                committer_name, committer_email, committer_date,
-               message,
                file_changes,
                parents,
                original_id = None,
-               encoding = None, # encoding for message; None implies UTF-8
                **kwargs):
     _GitElementWithId.__init__(self)
     self.old_id = self.id
@@ -776,9 +769,7 @@ class Commit(_GitElementWithId):
     # Record date the commit was made
     self.committer_date  = committer_date
 
-    # Record commit message and its encoding
     self.encoding = encoding
-    self.message = message
 
     # List of file-changes associated with this commit. Note that file-changes
     # are also represented as git elements
@@ -793,9 +784,7 @@ class Commit(_GitElementWithId):
     self.dumped = 1
 
     # Make output to fast-import slightly easier for humans to read if the
-    # message has no trailing newline of its own; cosmetic, but a nice touch...
     extra_newline = b'\n'
-    if self.message.endswith(b'\n') or not (self.parents or self.file_changes):
       extra_newline = b''
 
     if not self.parents:
@@ -812,7 +801,6 @@ class Commit(_GitElementWithId):
     if self.encoding:
       file_.write(b'encoding %s\n' % self.encoding)
     file_.write(b'data %d\n%s%s' %
-                (len(self.message), self.message, extra_newline))
     for i, parent in enumerate(self.parents):
       file_.write(b'from ' if i==0 else b'merge ')
       if isinstance(parent, int):
@@ -871,8 +859,6 @@ class Tag(_GitElementWithId):
     # Store the date
     self.tagger_date  = tagger_date
 
-    # Store the tag message
-    self.message = tag_msg
 
   def dump(self, file_):
     """
@@ -890,24 +876,19 @@ class Tag(_GitElementWithId):
       file_.write(b'tagger %s <%s> ' % (self.tagger_name, self.tagger_email))
       file_.write(self.tagger_date)
       file_.write(b'\n')
-    file_.write(b'data %d\n%s' % (len(self.message), self.message))
     file_.write(b'\n')
 
 class Progress(_GitElement):
   """
   This class defines our representation of progress elements. The progress
-  element only contains a progress message, which is printed by fast-import
   when it processes the progress output.
   """
 
-  def __init__(self, message):
     _GitElement.__init__(self)
 
     # Denote that this is a progress element
     self.type = 'progress'
 
-    # Store the progress message
-    self.message = message
 
   def dump(self, file_):
     """
@@ -915,7 +896,6 @@ class Progress(_GitElement):
     """
     self.dumped = 1
 
-    file_.write(b'progress %s\n' % self.message)
     file_.write(b'\n')
 
 class Checkpoint(_GitElement):
@@ -1364,7 +1344,6 @@ class FastExportParser(object):
       commit.old_id = id_
       _IDS.record_rename(id_, commit.id)
 
-    # refs/notes/ put commit-message-related material in blobs, and name their
     # files according to the hash of other commits.  That totally messes with
     # all normal callbacks; fast-export should really export these as different
     # kinds of objects.  Until then, let's just pass these commits through as-is
@@ -1448,21 +1427,16 @@ class FastExportParser(object):
     everything else is done (unless it has been skipped by the callback).
     """
     # Parse the Progress
-    message = self._parse_ref_line(b'progress')
     if self._currentline == b'\n':
       self._advance_currentline()
 
-    # Create the progress message
-    progress = Progress(message)
 
     # Call any user callback to allow them to modify the progress messsage
     if self._progress_callback:
       self._progress_callback(progress)
 
-    # NOTE: By default, we do NOT print the progress message; git
     # fast-import would write it to fast_import_pipes which could mess with
     # our parsing of output from the 'ls' and 'get-mark' directives we send
-    # to fast-import.  If users want these messages, they need to process
     # and handle them in the appropriate callback above.
 
   def _parse_checkpoint(self):
@@ -1485,7 +1459,6 @@ class FastExportParser(object):
     if self._checkpoint_callback:
       self._checkpoint_callback(checkpoint)
 
-    # NOTE: By default, we do NOT print the checkpoint message; although it
     # we would only realistically get them with --stdin, the fact that we
     # are filtering makes me think the checkpointing is less likely to be
     # reasonable.  In fact, I don't think it's necessary in general.  If
@@ -1862,8 +1835,6 @@ class FilteringOptions(object):
     'Jon' with 'John' in author/committer/tagger names:
       git filter-repo --name-callback 'return name.replace(b"Jon", b"John")'
 
-    To remove all 'Tested-by' tags in commit (or tag) messages:
-      git filter-repo --message-callback 'return re.sub(br"\\nTested-by:.*", "", message)'
 
     To remove all .DS_Store files:
       git filter-repo --filename-callback 'return None if os.path.basename(filename) == b".DS_Store" else filename'
@@ -2037,22 +2008,12 @@ EXAMPLES
                "example, --tag-rename foo:bar will rename tag foo-1.2.3 "
                "to bar-1.2.3; either OLD or NEW can be empty."))
 
-    messages = parser.add_argument_group(title=_("Filtering of commit messages "
-                                               "(see also --message-callback)"))
-    messages.add_argument('--replace-message', metavar='EXPRESSIONS_FILE',
         help=_("A file with expressions that, if found in commit or tag "
-               "messages, will be replaced. This file uses the same syntax "
                "as --replace-text."))
-    messages.add_argument('--preserve-commit-hashes', action='store_true',
         help=_("By default, since commits are rewritten and thus gain new "
-               "hashes, references to old commit hashes in commit messages "
                "are replaced with new commit hashes (abbreviated to the same "
                "length as the old reference).  Use this flag to turn off "
-               "updating commit hashes in commit messages."))
-    messages.add_argument('--preserve-commit-encoding', action='store_true',
-        help=_("Do not reencode commit messages into UTF-8.  By default, if "
                "the commit object specifies an encoding for the commit "
-               "message, the message is re-encoded into UTF-8."))
 
     people = parser.add_argument_group(title=_("Filtering of names & emails "
                                                "(see also --name-callback "
@@ -2123,9 +2084,6 @@ EXAMPLES
     callback.add_argument('--file-info-callback', metavar="FUNCTION_BODY_OR_FILE",
         help=_("Python code body for processing file and metadata; see "
                "CALLBACKS sections below."))
-    callback.add_argument('--message-callback', metavar="FUNCTION_BODY_OR_FILE",
-        help=_("Python code body for processing messages (both commit "
-               "messages and tag messages); see CALLBACKS section below."))
     callback.add_argument('--name-callback', metavar="FUNCTION_BODY_OR_FILE",
         help=_("Python code body for processing names of people; see "
                "CALLBACKS section below."))
@@ -2183,7 +2141,6 @@ EXAMPLES
 
     misc = parser.add_argument_group(title=_("Miscellaneous options"))
     misc.add_argument('--help', '-h', action='store_true',
-        help=_("Show this help message and exit."))
     misc.add_argument('--version', action='store_true',
         help=_("Display filter-repo's version and exit."))
     misc.add_argument('--proceed', action='store_true',
@@ -2222,7 +2179,6 @@ EXAMPLES
         help=_("Do not change the repository.  Run `git fast-export` and "
                "filter its output, and save both the original and the "
                "filtered version for comparison.  This also disables "
-               "rewriting commit messages due to not knowing new commit "
                "IDs and disables filtering of some empty commits due to "
                "inability to query the fast-import backend." ))
     misc.add_argument('--debug', action='store_true',
@@ -2437,8 +2393,6 @@ EXAMPLES
       args.mailmap = MailmapInfo(args.mailmap)
     if args.replace_text:
       args.replace_text = FilteringOptions.get_replace_text(args.replace_text)
-    if args.replace_message:
-      args.replace_message = FilteringOptions.get_replace_text(args.replace_message)
     if args.strip_blobs_with_ids:
       with open(args.strip_blobs_with_ids, 'br') as f:
         args.strip_blobs_with_ids = set(f.read().split())
@@ -2630,7 +2584,6 @@ class RepoAnalyze(object):
       num_commits += 1
       commit_parse_progress.show(processed_commits_msg % num_commits)
 
-    # Show the final commits processed message and record the number of commits
     commit_parse_progress.finish()
     stats['num_commits'] = num_commits
 
@@ -3112,7 +3065,6 @@ class RepoFilter(object):
   def __init__(self,
                args,
                filename_callback = None,
-               message_callback = None,
                name_callback = None,
                email_callback = None,
                refname_callback = None,
@@ -3137,7 +3089,6 @@ class RepoFilter(object):
 
     # Store callbacks for acting on slices of FastExport objects
     self._filename_callback    = filename_callback  # filenames from commits
-    self._message_callback     = message_callback   # commit OR tag message
     self._name_callback        = name_callback      # author, committer, tagger
     self._email_callback       = email_callback     # author, committer, tagger
     self._refname_callback     = refname_callback   # from commit/tag/reset
@@ -3174,13 +3125,11 @@ class RepoFilter(object):
 
     # A set of commit hash pairs (oldhash, newhash) which used to be merge
     # commits but due to filtering were turned into non-merge commits.
-    # The commits probably have suboptimal commit messages (e.g. "Merge branch
     # next into master").
     self._commits_no_longer_merges = []
 
     # A dict of original_ids to new_ids; filtering commits means getting
     # new commit hash (sha1sums), and we record the mapping both for
-    # diagnostic purposes and so we can rewrite commit messages.  Note that
     # the new_id can be None rather than a commit hash if the original
     # commit became empty and was pruned or was otherwise dropped.
     self._commit_renames = {}
@@ -3192,14 +3141,11 @@ class RepoFilter(object):
 
     # A dict of commit_hash[0:7] -> set(commit_hashes with that prefix).
     #
-    # It's common for commit messages to refer to commits by abbreviated
     # commit hashes, as short as 7 characters.  To facilitate translating
     # such short hashes, we have a mapping of prefixes to full old hashes.
     self._commit_short_old_hashes = collections.defaultdict(set)
 
-    # A set of commit hash references appearing in commit messages which
     # mapped to a valid commit that was removed entirely in the filtering
-    # process.  The commit message will continue to reference the
     # now-missing commit hash, since there was nothing to map it to.
     self._commits_referenced_but_removed = set()
 
@@ -3223,8 +3169,6 @@ class RepoFilter(object):
     self._newnames = {}
     self._stash = None
 
-    # Cache a few message translations for performance reasons
-    self._parsed_message = _("Parsed %d commits")
 
     # Compile some regexes and cache those
     self._hash_re = re.compile(br'(\b[0-9a-f]{7,40}\b)')
@@ -3258,7 +3202,6 @@ class RepoFilter(object):
                            % which)
         setattr(self, callback_field, make_callback(args, code_string))
     handle('filename')
-    handle('message')
     handle('name')
     handle('email')
     handle('refname')
@@ -3948,18 +3891,8 @@ class RepoFilter(object):
     commit.file_changes = [v for k,v in sorted(new_file_changes.items())]
 
   def _tweak_commit(self, commit, aux_info):
-    if self._args.replace_message:
-      for literal, replacement in self._args.replace_message['literals']:
-        commit.message = commit.message.replace(literal, replacement)
-      for regex,   replacement in self._args.replace_message['regexes']:
-        commit.message = regex.sub(replacement, commit.message)
-    if self._message_callback:
-      commit.message = self._message_callback(commit.message)
 
-    # Change the commit message according to callback
     if not self._args.preserve_commit_hashes:
-      commit.message = self._hash_re.sub(self._translate_commit_hash,
-                                         commit.message)
 
     # Change the author & committer according to mailmap rules
     args = self._args
@@ -4153,7 +4086,6 @@ class RepoFilter(object):
     # Show progress
     self._num_commits += 1
     if not self._args.quiet:
-      self._progress_writer.show(self._parsed_message % self._num_commits)
 
   @staticmethod
   def _do_tag_rename(rename_pair, tagname):
@@ -4164,14 +4096,6 @@ class RepoFilter(object):
     return tagname
 
   def _tweak_tag(self, tag):
-    # Tweak the tag message according to callbacks
-    if self._args.replace_message:
-      for literal, replacement in self._args.replace_message['literals']:
-        tag.message = tag.message.replace(literal, replacement)
-      for regex,   replacement in self._args.replace_message['regexes']:
-        tag.message = regex.sub(replacement, tag.message)
-    if self._message_callback:
-      tag.message = self._message_callback(tag.message)
 
     # Tweak the tag name according to tag-name-related callbacks
     tag_prefix = b'refs/tags/'
@@ -4821,7 +4745,6 @@ class RepoFilter(object):
 
         f.write(textwrap.dedent(_('''
           The following commits used to be merge commits but due to filtering
-          are now regular commits; they likely have suboptimal commit messages
           (e.g. "Merge branch next into master").  Original commit hash on the
           left, commit hash after filtering/rewriting on the right:
           ''')[1:]).encode())
@@ -4833,8 +4756,6 @@ class RepoFilter(object):
         issues_found = True
         f.write(textwrap.dedent(_('''
           The following commits were filtered out, but referenced in another
-          commit message.  The reference to the now-nonexistent commit hash
-          (or a substring thereof) was left as-is in any commit messages:
           ''')[1:]).encode())
         for bad_commit_reference in self._commits_referenced_but_removed:
           f.write('  {}\n'.format(bad_commit_reference).encode())

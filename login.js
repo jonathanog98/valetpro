@@ -5,12 +5,9 @@ const form = document.getElementById("login-form");
 const btn = document.getElementById("login-btn");
 const err = document.getElementById("error-msg");
 
-function showError(message) {
   if (err) {
-    err.textContent = message;
     err.style.display = "block";
   } else {
-    alert(message);
   }
 }
 

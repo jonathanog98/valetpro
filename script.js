@@ -1,5 +1,5 @@
 
-import { supabase } from './lib/supabase.js';
+import { supabase } from './supabase.js';
 
 const $ = (id) => document.getElementById(id);
 

@@ -81,7 +81,7 @@
       <div class="table-wrapper">
         <h2>Loaner</h2>
         <table id="tabla-loaner">
-          <thead><tr><th>Hora</th><th>Nombre Cliente</th><th>Acciones</th></tr></thead>
+          <thead><tr><th>Hora</th><th>Nombre Cliente</th><th>Descripción</th><th>Acciones</th></tr></thead>
           <tbody></tbody>
         </table>
       </div>
@@ -119,7 +119,7 @@
   const fields = {
     Recogiendo: ['vin', 'tag', 'modelo', 'color', 'asesor', 'descripcion'],
     Waiter: ['vin', 'tag', 'modelo', 'color', 'asesor', 'descripcion'],
-    Loaner: ['nombre', 'hora_cita'],
+    Loaner: ['nombre', 'hora_cita', 'descripcion'],
     'Transportación': ['nombre', 'telefono', 'direccion', 'personas', 'descripcion']
   };
 

@@ -1,26 +1,32 @@
 
-document.addEventListener('DOMContentLoaded', async () => {
-  const $ = (id) => document.getElementById(id);
 
-  setTimeout(() => {
-    $('vin')?.addEventListener('blur', () => {
-      handleVinBlur();
-    });
-  }, 0);
-
-  async function handleVinBlur() {
-    const vin = $('vin')?.value;
-    if (vin?.length === 17) {
-      $('modelo').value = await decodeVIN(vin);
-    }
+document.addEventListener('DOMContentLoaded', () => {
+  const vinInput = document.getElementById('vin');
+  if (vinInput) {
+    vinInput.addEventListener('blur', handleVinBlur);
   }
+});
 
-  async function decodeVIN(vin) {
-    // Aquí iría la lógica para decodificar el VIN, puedes ajustarla si tienes una API
+async function handleVinBlur() {
+  const vin = document.getElementById('vin')?.value;
+  if (vin?.length === 17) {
+    const modeloInput = document.getElementById('modelo');
+    modeloInput.value = await decodeVIN(vin);
+  }
+}
 
-  async function decodeVIN(vin) {
-    try {
-      const res = await fetch(`https://vpic.nhtsa.dot.gov/api/vehicles/DecodeVin/${vin}?format=json`);
+async function decodeVIN(vin) {
+  try {
+    const res = await fetch(`https://vpic.nhtsa.dot.gov/api/vehicles/DecodeVin/${vin}?format=json`);
+    const data = await res.json();
+    const modelEntry = data.Results.find(entry => entry.Variable === 'Model');
+    return modelEntry?.Value || 'Desconocido';
+  } catch (err) {
+    console.error("Error decodificando VIN:", err);
+    return 'Error';
+  }
+}
+?format=json`);
       const data = await res.json();
       const modelEntry = data.Results.find(entry => entry.Variable === 'Model');
       return modelEntry?.Value || 'Desconocido';

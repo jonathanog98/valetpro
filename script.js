@@ -2,9 +2,11 @@
 import { supabase } from './supabase.js';
 
 document.addEventListener("DOMContentLoaded", async function () {
+  // ====== SESIÓN ======
   const userRole = sessionStorage.getItem("rol") || "Guest";
   const userEmail = sessionStorage.getItem("usuario") || "";
 
+  // ====== LISTAS DE STATUS ======
   const cajeroStatuses = [
     "Complete", "Tiene Doc", "No ha pagado", "Falta book", "En Camino", "Pert",
     "Dudas", "Se va sin docs", "Llaves a asesor", "Lav. Cortesía", "Test Drive",
@@ -21,6 +23,14 @@ document.addEventListener("DOMContentLoaded", async function () {
     "Call Center", "Cargando", "Inspección"
   ];
 
+  // ====== TIME HELPERS (12h TEXT) ======
+  function horaActual12h() {
+    // "01:49 PM" (siempre 2 dígitos y AM/PM en mayúsculas)
+    const s = new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true });
+    return s.toUpperCase();
+  }
+
+  // ====== VIN DECODER ======
   async function handleVinBlur() {
     const vinInput = document.getElementById("vin");
     if (!vinInput) return;
@@ -41,6 +51,7 @@ document.addEventListener("DOMContentLoaded", async function () {
   }
   window.handleVinBlur = handleVinBlur;
 
+  // ====== UI HELPERS ======
   function createDropdown(options, selectedValue, onChange, disabled) {
     const select = document.createElement("select");
     select.disabled = !!disabled;
@@ -86,24 +97,15 @@ document.addEventListener("DOMContentLoaded", async function () {
     return btn;
   }
 
-  // === SELECT robusto: primero 'hora', luego 'created_at', y último sin orden ===
+  // === SELECT robusto: intenta ordenar por 'hora' (texto 12h) y si falla, sin orden ===
   async function fetchTable(table) {
-    // intenta ordenar por 'hora' (tu columna de timestamp/tiempo)
     let r1 = await supabase.from(table).select("*").order("hora", { ascending: false });
     if (!r1.error) return r1;
-
-    console.warn(`Fallo order(hora) en ${table}. Probando created_at…`, r1.error);
-
-    // si falla, intenta 'created_at'
-    let r2 = await supabase.from(table).select("*").order("created_at", { ascending: false });
-    if (!r2.error) return r2;
-
-    console.warn(`Fallo order(created_at) en ${table}. Probando sin order…`, r2.error);
-
-    // último recurso, sin order
+    console.warn(`Fallo order(hora) en ${table}. Cargando sin orden…`, r1.error);
     return await supabase.from(table).select("*");
   }
 
+  // ====== CARGA DE TABLAS ======
   async function loadData() {
     const roles = {
       admin: userRole === "Admin",
@@ -155,10 +157,11 @@ document.addEventListener("DOMContentLoaded", async function () {
                 console.error("Error actualizando status (en_sala):", error);
                 return;
               }
+              // mover en_sala → recogiendo cuando elija "Falta book"
               if (String(val).toLowerCase() === "falta book") {
                 try {
                   const insertPayload = {
-                    hora: row.hora,
+                    hora: row.hora || horaActual12h(),
                     tag: row.tag,
                     modelo: row.modelo,
                     color: row.color,
@@ -194,6 +197,7 @@ document.addEventListener("DOMContentLoaded", async function () {
           tr.appendChild(td);
         }
 
+        // Acciones (Eliminar) para Admin o Cajero en tablas con columna Acciones
         const addDelete =
           (userRole === "Admin" || userRole === "Cajero") &&
           (table === "recogiendo" || table === "loaners" || table === "transportaciones");
@@ -211,22 +215,14 @@ document.addEventListener("DOMContentLoaded", async function () {
 
   await loadData();
 
-  function horaActual() {
-    try {
-      return new Date().toLocaleTimeString('es-PR', { hour: '2-digit', minute: '2-digit' });
-    } catch {
-      const d = new Date();
-      return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
-    }
-  }
-
+  // ====== INSERTAR NUEVOS PICKUPS ======
   const form = document.getElementById("pickup-form");
   form?.addEventListener("submit", async (e) => {
     e.preventDefault();
     const proposito = document.getElementById("proposito")?.value;
     if (!proposito) return;
 
-    const hora = horaActual();
+    const hora = horaActual12h(); // <-- ahora guardamos "01:49 PM" (texto)
     const tag = document.getElementById("tag")?.value?.trim() || null;
     const modelo = document.getElementById("modelo")?.value?.trim() || null;
     const color = document.getElementById("color")?.value?.trim() || null;
@@ -245,7 +241,7 @@ document.addEventListener("DOMContentLoaded", async function () {
       } else if (proposito === "Loaner") {
         const nombre = document.getElementById("nombre")?.value?.trim() || null;
         const hora_cita = document.getElementById("hora_cita")?.value || null;
-        const payload = { hora: hora_cita || hora, nombre_cliente: nombre };
+        const payload = { hora: (hora_cita || hora), nombre_cliente: nombre };
         const { error } = await supabase.from("loaners").insert([payload]);
         if (error) throw error;
       } else if (proposito === "Transportación") {
@@ -271,6 +267,7 @@ document.addEventListener("DOMContentLoaded", async function () {
     }
   });
 
+  // VIN blur
   const vinInput = document.getElementById("vin");
   if (vinInput) {
     vinInput.addEventListener("blur", handleVinBlur);

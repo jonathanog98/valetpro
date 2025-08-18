@@ -2,9 +2,11 @@
 // script.js
 
 document.addEventListener("DOMContentLoaded", async function () {
-  const userRole = localStorage.getItem("userRole") || "Guest";
-  const userEmail = localStorage.getItem("userEmail") || "";
+  // ====== SESIÓN (sessionStorage) ======
+  const userRole = sessionStorage.getItem("userRole") || "Guest";
+  const userEmail = sessionStorage.getItem("userEmail") || "";
 
+  // ====== LISTAS DE STATUS ======
   const cajeroStatuses = [
     "Complete", "Tiene Doc", "No ha pagado", "Falta book", "En Camino", "Pert",
     "Dudas", "Se va sin docs", "Llaves a asesor", "Lav. Cortesía", "Test Drive",
@@ -21,16 +23,19 @@ document.addEventListener("DOMContentLoaded", async function () {
     "Call Center", "Cargando", "Inspección"
   ];
 
+  // ====== VIN DECODER ======
   async function handleVinBlur() {
     const vinInput = document.getElementById("vin");
-    const vin = vinInput.value;
-    if (vin.length >= 5) {
+    if (!vinInput) return;
+    const vin = vinInput.value?.trim();
+    if (vin && vin.length >= 5) {
       try {
-        const res = await fetch(`https://vpic.nhtsa.dot.gov/api/vehicles/DecodeVin/${vin}?format=json`);
+        const res = await fetch(`https://vpic.nhtsa.dot.gov/api/vehicles/DecodeVin/${encodeURIComponent(vin)}?format=json`);
         const data = await res.json();
-        const modelEntry = data.Results.find(entry => entry.Variable === "Model");
+        const modelEntry = data?.Results?.find(entry => entry.Variable === "Model");
         if (modelEntry) {
-          document.getElementById("modelo").value = modelEntry.Value || "";
+          const modeloEl = document.getElementById("modelo");
+          if (modeloEl) modeloEl.value = modelEntry.Value || "";
         }
       } catch (err) {
         console.error("Error decoding VIN", err);
@@ -38,9 +43,10 @@ document.addEventListener("DOMContentLoaded", async function () {
     }
   }
 
+  // ====== UI HELPERS ======
   function createDropdown(options, selectedValue, onChange, disabled) {
     const select = document.createElement("select");
-    select.disabled = disabled;
+    select.disabled = !!disabled;
     options.forEach(option => {
       const opt = document.createElement("option");
       opt.value = option;
@@ -56,25 +62,40 @@ document.addEventListener("DOMContentLoaded", async function () {
     const input = document.createElement("input");
     input.type = "text";
     input.value = value || "";
-    input.disabled = disabled;
+    input.disabled = !!disabled;
     input.addEventListener("blur", (e) => onChange(e.target.value));
     return input;
   }
 
   function createDeleteButton(id, table) {
     const btn = document.createElement("button");
+    btn.type = "button";
     btn.textContent = "Eliminar";
     btn.addEventListener("click", async () => {
+      if (!window.supabase) {
+        console.error("Supabase no está disponible en window.supabase");
+        return;
+      }
       if (confirm("¿Estás seguro de que deseas eliminar este pickup?")) {
-        await supabase.from(table).delete().eq("id", id);
-        location.reload();
+        const { error } = await supabase.from(table).delete().eq("id", id);
+        if (error) {
+          console.error("Error eliminando:", error);
+          alert("No se pudo eliminar. Revisa la consola.");
+        } else {
+          location.reload();
+        }
       }
     });
     return btn;
   }
 
-  // Populate tables from Supabase
+  // ====== CARGA DE TABLAS DESDE SUPABASE ======
   async function loadData() {
+    if (!window.supabase) {
+      console.error("Supabase no está disponible en window.supabase");
+      return;
+    }
+
     const roles = {
       admin: userRole === "Admin",
       cajero: userRole === "Cajero",
@@ -83,44 +104,100 @@ document.addEventListener("DOMContentLoaded", async function () {
     };
 
     const pickups = [
-      { table: "recogiendo", elementId: "recogiendo-table", fields: ["hora", "tag", "modelo", "color", "asesor", "descripcion", "status_cajero", "status_jockey"] },
-      { table: "en_sala", elementId: "en-sala-table", fields: ["hora", "tag", "modelo", "color", "asesor", "descripcion", "status", "promise_time"] },
-      { table: "transportaciones", elementId: "transportaciones-table", fields: ["hora", "nombre", "telefono", "direccion", "personas", "asignado"] },
-      { table: "loaners", elementId: "loaners-table", fields: ["hora", "nombre_cliente"] }
+      {
+        table: "recogiendo",
+        elementId: "recogiendo-table",
+        fields: ["hora", "tag", "modelo", "color", "asesor", "descripcion", "status_cajero", "status_jockey"]
+      },
+      {
+        table: "en_sala",
+        elementId: "en-sala-table",
+        fields: ["hora", "tag", "modelo", "color", "asesor", "descripcion", "status", "promise_time"]
+      },
+      {
+        table: "transportaciones",
+        elementId: "transportaciones-table",
+        fields: ["hora", "nombre", "telefono", "direccion", "personas", "asignado"]
+      },
+      {
+        table: "loaners",
+        elementId: "loaners-table",
+        fields: ["hora", "nombre_cliente"]
+      }
     ];
 
     for (let { table, elementId, fields } of pickups) {
-      const { data } = await supabase.from(table).select("*").order("created_at", { ascending: false });
       const tbody = document.getElementById(elementId);
       if (!tbody) continue;
+
+      const { data, error } = await supabase
+        .from(table)
+        .select("*")
+        .order("created_at", { ascending: false });
+
+      if (error) {
+        console.error(`Error consultando ${table}:`, error);
+        continue;
+      }
+
       tbody.innerHTML = "";
-      for (let row of data) {
+
+      for (let row of (data || [])) {
         const tr = document.createElement("tr");
+
         fields.forEach(field => {
           const td = document.createElement("td");
 
           if (field === "status_cajero" && (roles.cajero || roles.admin)) {
-            td.appendChild(createDropdown(cajeroStatuses, row[field], async (val) => {
-              await supabase.from(table).update({ status_cajero: val }).eq("id", row.id);
-            }, false));
+            td.appendChild(createDropdown(
+              cajeroStatuses,
+              row[field],
+              async (val) => {
+                const { error } = await supabase.from(table).update({ status_cajero: val }).eq("id", row.id);
+                if (error) console.error("Error actualizando status_cajero:", error);
+              },
+              false
+            ));
           } else if (field === "status_jockey" && (roles.jockey || roles.admin)) {
-            td.appendChild(createDropdown(jockeyStatuses, row[field], async (val) => {
-              await supabase.from(table).update({ status_jockey: val }).eq("id", row.id);
-            }, false));
+            td.appendChild(createDropdown(
+              jockeyStatuses,
+              row[field],
+              async (val) => {
+                const { error } = await supabase.from(table).update({ status_jockey: val }).eq("id", row.id);
+                if (error) console.error("Error actualizando status_jockey:", error);
+              },
+              false
+            ));
           } else if (field === "status" && table === "en_sala" && (roles.admin || roles.cajero)) {
-            td.appendChild(createDropdown(enSalaStatuses, row[field], async (val) => {
-              await supabase.from(table).update({ status: val }).eq("id", row.id);
-            }, false));
+            td.appendChild(createDropdown(
+              enSalaStatuses,
+              row[field],
+              async (val) => {
+                const { error } = await supabase.from(table).update({ status: val }).eq("id", row.id);
+                if (error) console.error("Error actualizando status (en_sala):", error);
+              },
+              false
+            ));
           } else if (field === "promise_time" && table === "en_sala" && (roles.admin || roles.cajero)) {
-            td.appendChild(createTextInput(row[field], async (val) => {
-              await supabase.from(table).update({ promise_time: val }).eq("id", row.id);
-            }, false));
+            td.appendChild(createTextInput(
+              row[field],
+              async (val) => {
+                const { error } = await supabase.from(table).update({ promise_time: val }).eq("id", row.id);
+                if (error) console.error("Error actualizando promise_time:", error);
+              },
+              false
+            ));
           } else if (field === "asignado" && table === "transportaciones" && (roles.admin || roles.transporte)) {
-            td.appendChild(createTextInput(row[field], async (val) => {
-              await supabase.from(table).update({ asignado: val }).eq("id", row.id);
-            }, false));
+            td.appendChild(createTextInput(
+              row[field],
+              async (val) => {
+                const { error } = await supabase.from(table).update({ asignado: val }).eq("id", row.id);
+                if (error) console.error("Error actualizando asignado (transportaciones):", error);
+              },
+              false
+            ));
           } else {
-            td.textContent = row[field] || "";
+            td.textContent = row[field] ?? "";
           }
 
           tr.appendChild(td);
@@ -131,6 +208,7 @@ document.addEventListener("DOMContentLoaded", async function () {
           actionTd.appendChild(createDeleteButton(row.id, table));
         }
         tr.appendChild(actionTd);
+
         tbody.appendChild(tr);
       }
     }
@@ -142,4 +220,6 @@ document.addEventListener("DOMContentLoaded", async function () {
   if (vinInput) {
     vinInput.addEventListener("blur", handleVinBlur);
   }
+
+  console.log(`[APP] Sesión activa con sessionStorage. userEmail="\${userEmail}", userRole="\${userRole}"`);
 });

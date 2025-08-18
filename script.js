@@ -530,5 +530,13 @@ tr.blink-red    { animation: blinkRed 1s linear infinite; }
   const vinInput = document.getElementById("vin");
   if (vinInput) vinInput.addEventListener("blur", handleVinBlur);
 
+  
+  // ===== Logout / Salir =====
+  document.getElementById("btn-logout")?.addEventListener("click", () => {
+    sessionStorage.removeItem("rol");
+    sessionStorage.removeItem("usuario");
+    window.location.href = "login.html";
+  });
+
   console.log(`[APP] sessionStorage activo. usuario="${userEmail}", rol="${userRole}"`);
 });

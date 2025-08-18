@@ -81,3 +81,37 @@ async function cargarTableros() {
 }
 
 cargarTableros();
+
+
+// Manejar evento de 'Agregar'
+const form = document.getElementById("crear-pickup-form");
+if (form) {
+  form.onsubmit = async (e) => {
+    e.preventDefault();
+
+    const proposito = $("proposito").value;
+    const tag = $("tag").value;
+    const modelo = $("modelo").value;
+    const color = $("color").value;
+    const asesor = $("asesor").value;
+    const descripcion = $("descripcion").value;
+    const vin = $("vin").value || null;
+    const hora = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+    const { data, error } = await supabase.from("pickups").insert([{
+      proposito, tag, modelo, color, asesor, descripcion, vin, hora
+    }]);
+
+    if (error) {
+      alert("Error al crear pickup.");
+      console.error(error);
+      return;
+    }
+
+    // Limpiar campos
+    form.reset();
+
+    // Recargar tablas
+    cargarTableros();
+  };
+}

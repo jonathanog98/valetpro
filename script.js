@@ -405,10 +405,12 @@ tr.blink-red    { animation: blinkRed 1s linear infinite; }
         }
 
         // Parpadeo por tiempo / promise_time
-        const cls = classifyBlink(row);
+        if (table !== "autos_entregados") {
+  const cls = classifyBlink(row);
         tr.classList.remove("blink-yellow","blink-red");
         if (cls.blinkRed) tr.classList.add("blink-red");
         else if (cls.blinkYellow) tr.classList.add("blink-yellow");
+}
 
         // Botón Eliminar en tablas operadas por Cajero/Admin, incluyendo en_sala
         const addDelete =

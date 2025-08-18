@@ -1,4 +1,3 @@
-
 import { supabase } from './supabase.js';
 
 document.addEventListener("DOMContentLoaded", async function () {
@@ -24,7 +23,7 @@ tr.blink-red    { animation: blinkRed 1s linear infinite; }
 
   // ====== Listas de status ======
   const cajeroStatuses = [
-    "--", "Complete","Tiene Doc","No ha pagado","Falta book","En Camino","Pert",
+    "--","Complete","Tiene Doc","No ha pagado","Falta book","En Camino","Pert",
     "Dudas","Se va sin docs","Llaves a asesor","Lav. Cortesía","Test Drive",
     "Llevar a taller","Inspección","Valet","Poner a Cargar","Grua"
   ];
@@ -46,7 +45,7 @@ tr.blink-red    { animation: blinkRed 1s linear infinite; }
     const modeloEl = document.getElementById("modelo");
     if (!vinEl || !modeloEl) return;
     const vin = vinEl.value?.trim();
-    if (!vin || vin.length < 5) return;
+    if (!vin || !vin.length) return;
     try {
       const res = await fetch(`https://vpic.nhtsa.dot.gov/api/vehicles/DecodeVin/${encodeURIComponent(vin)}?format=json`);
       const data = await res.json();
@@ -56,6 +55,7 @@ tr.blink-red    { animation: blinkRed 1s linear infinite; }
       console.error("Error decoding VIN:", e);
     }
   }
+  // Exponer para index.html inline script
   window.handleVinBlur = handleVinBlur;
 
   // ====== UI helpers ======
@@ -66,7 +66,7 @@ tr.blink-red    { animation: blinkRed 1s linear infinite; }
       const opt = document.createElement("option");
       opt.value = optVal;
       opt.textContent = optVal;
-      if (optVal === selectedValue) opt.selected = true;
+      if ((selectedValue ?? "") === optVal) opt.selected = true;
       select.appendChild(opt);
     });
     select.addEventListener("change", (e) => onChange(e.target.value));
@@ -76,7 +76,7 @@ tr.blink-red    { animation: blinkRed 1s linear infinite; }
   function createTextInput(value, onChange, disabled) {
     const input = document.createElement("input");
     input.type = "text";
-    input.value = value || "";
+    input.value = value ?? "";
     input.disabled = !!disabled;
     input.addEventListener("blur", (e) => onChange(e.target.value));
     return input;
@@ -203,6 +203,48 @@ tr.blink-red    { animation: blinkRed 1s linear infinite; }
     return { blinkYellow, blinkRed };
   }
 
+  // ====== Mover a Autos Entregados ======
+  async function maybeMoveToEntregados(row) {
+    try {
+      if (!row) return;
+      const caj = String(row.status_cajero ?? "").toLowerCase();
+      const jok = String(row.status_jockey ?? "").toLowerCase();
+      if (caj === "complete" && jok === "arriba") {
+        const horaSalida = horaActual12h();
+        // calcular minutos de espera
+        function parseHora12(h12) {
+          if (!h12) return null;
+          const s = String(h12).trim().toUpperCase();
+          const m = s.match(/^([0-1]?\d):([0-5]\d)\s*(AM|PM)$/);
+          const now = new Date();
+          if (!m) return null;
+          let hh = parseInt(m[1],10);
+          const mm = parseInt(m[2],10);
+          const ap = m[3];
+          if (ap === "AM") { if (hh === 12) hh = 0; }
+          else { if (hh !== 12) hh += 12; }
+          const d = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hh, mm, 0, 0);
+          if (d.getTime() > now.getTime()) d.setDate(d.getDate() - 1);
+          return d;
+        }
+        const llegada = parseHora12(row.hora);
+        const esperaMin = llegada ? Math.round((new Date().getTime() - llegada.getTime())/60000) : null;
+        const ent = {
+          tag: row.tag, modelo: row.modelo, color: row.color, asesor: row.asesor,
+          hora_llegada: row.hora || "", hora_salida: horaSalida,
+          tiempo_espera_min: esperaMin
+        };
+        const { error: insErr } = await supabase.from("autos_entregados").insert([ent]);
+        if (insErr) { console.error("insert autos_entregados:", insErr); return; }
+        const { error: delErr } = await supabase.from("recogiendo").delete().eq("id", row.id);
+        if (delErr) { console.error("delete recogiendo:", delErr); return; }
+        await loadData();
+      }
+    } catch (e) {
+      console.error("maybeMoveToEntregados error:", e);
+    }
+  }
+
   // ====== SELECT: orden ascendente (más viejo primero) ======
   async function fetchTable(table) {
     let r = await supabase.from(table).select("*").order("id", { ascending: true });
@@ -226,6 +268,7 @@ tr.blink-red    { animation: blinkRed 1s linear infinite; }
       { table: "recogiendo",       elementId: "tabla-recogiendo",  fields: ["hora","tag","modelo","color","asesor","descripcion","status_cajero","status_jockey"] },
       { table: "loaners",          elementId: "tabla-loaner",      fields: ["hora","nombre_cliente"] },
       { table: "transportaciones", elementId: "tabla-transporte",  fields: ["hora","nombre","telefono","direccion","personas","asignado"] },
+      { table: "autos_entregados", elementId: "tabla-entregados",  fields: ["tag","modelo","color","asesor","hora_llegada","hora_salida","tiempo_espera_min"] },
     ];
 
     for (const { table, elementId, fields } of configs) {
@@ -245,6 +288,19 @@ tr.blink-red    { animation: blinkRed 1s linear infinite; }
       }
 
       tbody.innerHTML = "";
+
+      // Promedio en Autos Entregados
+      if (table === "autos_entregados") {
+        const avgEl = document.getElementById("avg-entregados");
+        if (avgEl) {
+          const total = data.reduce((a,r)=> a + (Number(r.tiempo_espera_min)||0), 0);
+          const n = data.length || 1;
+          const avg = Math.round(total / n);
+          const h = Math.floor(avg/60); const m = avg%60;
+          avgEl.textContent = `Promedio de espera: ${h? h+"h ":""}${m}m`;
+        }
+      }
+
       for (const row of data) {
         const tr = document.createElement("tr");
 
@@ -253,19 +309,23 @@ tr.blink-red    { animation: blinkRed 1s linear infinite; }
 
           if (field === "status_cajero" && (roles.cajero || roles.admin)) {
             td.appendChild(createDropdown(cajeroStatuses, row[field] ?? "--", async (val) => {
-              const { error } = await supabase.from(table).update({ status_cajero: val }).eq("id", row.id);
-              if (error) console.error("Error actualizando status_cajero:", error);
+              const { error } = await supabase.from("recogiendo").update({ status_cajero: val }).eq("id", row.id);
+              if (error) { console.error("update status_cajero:", error); return; }
+              row.status_cajero = val;
+              await maybeMoveToEntregados(row);
             }, false));
           } else if (field === "status_jockey" && (roles.jockey || roles.admin)) {
             td.appendChild(createDropdown(jockeyStatuses, row[field], async (val) => {
-              const { error } = await supabase.from(table).update({ status_jockey: val }).eq("id", row.id);
-              if (error) console.error("Error actualizando status_jockey:", error);
+              const { error } = await supabase.from("recogiendo").update({ status_jockey: val }).eq("id", row.id);
+              if (error) { console.error("update status_jockey:", error); return; }
+              row.status_jockey = val;
+              await maybeMoveToEntregados(row);
             }, false));
           } else if (field === "status" && table === "en_sala" && (roles.admin || roles.cajero)) {
             td.appendChild(createDropdown(enSalaStatuses, row[field], async (val) => {
-              const { error } = await supabase.from(table).update({ status: val }).eq("id", row.id);
+              const { error } = await supabase.from("en_sala").update({ status: val }).eq("id", row.id);
               if (error) {
-                console.error("Error actualizando status (en_sala):", error);
+                console.error("update status (en_sala):", error);
                 return;
               }
               // Mover a 'recogiendo' si pasa a 'Falta book'
@@ -293,13 +353,13 @@ tr.blink-red    { animation: blinkRed 1s linear infinite; }
             }, false));
           } else if (field === "promise_time" && table === "en_sala" && (roles.admin || roles.cajero)) {
             td.appendChild(createTimeInput(row[field], async (val) => {
-              const { error } = await supabase.from(table).update({ promise_time: val }).eq("id", row.id);
-              if (error) console.error("Error actualizando promise_time:", error);
+              const { error } = await supabase.from("en_sala").update({ promise_time: val }).eq("id", row.id);
+              if (error) console.error("update promise_time:", error);
             }, false));
           } else if (field === "asignado" && table === "transportaciones" && (roles.admin || roles.transporte)) {
             td.appendChild(createTextInput(row[field], async (val) => {
-              const { error } = await supabase.from(table).update({ asignado: val }).eq("id", row.id);
-              if (error) console.error("Error actualizando asignado:", error);
+              const { error } = await supabase.from("transportaciones").update({ asignado: val }).eq("id", row.id);
+              if (error) console.error("update asignado:", error);
             }, false));
           } else {
             td.textContent = row[field] ?? "";
@@ -314,7 +374,7 @@ tr.blink-red    { animation: blinkRed 1s linear infinite; }
         if (cls.blinkRed) tr.classList.add("blink-red");
         else if (cls.blinkYellow) tr.classList.add("blink-yellow");
 
-        // Botón Eliminar en todas las tablas operadas por Cajero/Admin, incluyendo en_sala
+        // Botón Eliminar en tablas operadas por Cajero/Admin, incluyendo en_sala
         const addDelete =
           (userRole === "Admin" || userRole === "Cajero") &&
           (table === "recogiendo" || table === "loaners" || table === "transportaciones" || table === "en_sala");
@@ -330,6 +390,50 @@ tr.blink-red    { animation: blinkRed 1s linear infinite; }
   }
 
   await loadData();
+
+  // ===== Utilidades Autos Entregados (botones globales) =====
+  async function deleteAllEntregados() {
+    if (!confirm("¿Eliminar TODOS los Autos Entregados?")) return;
+    try {
+      const { error } = await supabase.from("autos_entregados").delete().neq("id", 0);
+      if (error) throw error;
+      await loadData();
+      alert("Autos Entregados eliminados.");
+    } catch (e) {
+      console.error("deleteAllEntregados:", e);
+      alert(`No se pudo borrar: ${e?.message || e}`);
+    }
+  }
+  async function exportEntregadosCSV() {
+    try {
+      const { data, error } = await supabase.from("autos_entregados").select("*").order("id", { ascending: true });
+      if (error) throw error;
+      const rows = data || [];
+      const headers = ["Tag","Modelo","Color","Asesor","Hora de Llegada","Hora de Salida","Tiempo de Espera (min)"];
+      const csvLines = [headers.join(",")];
+      for (const r of rows) {
+        const line = [
+          r.tag ?? "", r.modelo ?? "", r.color ?? "", r.asesor ?? "",
+          r.hora_llegada ?? "", r.hora_salida ?? "", r.tiempo_espera_min ?? ""
+        ].map(v => `"${String(v).replace(/"/g,'""')}"`).join(",");
+        csvLines.push(line);
+      }
+      const blob = new Blob([csvLines.join("\n")], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `autos_entregados.csv`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      console.error("exportEntregadosCSV:", e);
+      alert(`No se pudo exportar: ${e?.message || e}`);
+    }
+  }
+  document.getElementById("btn-clear-entregados")?.addEventListener("click", deleteAllEntregados);
+  document.getElementById("btn-export-entregados")?.addEventListener("click", exportEntregadosCSV);
 
   // ====== FORM INSERT ======
   const form = document.getElementById("pickup-form");
@@ -347,7 +451,7 @@ tr.blink-red    { animation: blinkRed 1s linear infinite; }
 
     try {
       if (proposito === "Recogiendo") {
-        // status_cajero por defecto en BLANCO (no seteamos valor)
+        // status_cajero por defecto "--"
         const payload = { hora, tag, modelo, color, asesor, descripcion, status_cajero: "--" };
         const { error } = await supabase.from("recogiendo").insert([payload]);
         if (error) throw error;

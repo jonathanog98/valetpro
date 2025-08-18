@@ -109,14 +109,15 @@
     <form id="create-user-form" class="create-user">
       <input type="email" id="new-email" placeholder="Email nuevo" required />
       <input type="password" id="new-pass" placeholder="Contraseña" required />
-      <select id="new-role" required>
-        <option value="">Rol</option>
-        <option value="Admin">Admin</option>
-        <option value="Cajero">Cajero</option>
-        <option value="Jockey">Jockey</option>
-        <option value="Loaners">Loaners</option>
-        <option value="Transportación">Transportación</option>
-      </select>
+      
+<div class="form-group">
+  <label for="new-role">Rol</label>
+  <select id="new-role" class="form-control" required>
+    <option value="">Selecciona un rol</option>
+    <!-- Opciones se llenarán dinámicamente -->
+  </select>
+</div>
+
       <button type="submit">Crear usuario</button>
     </form>
 

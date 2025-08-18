@@ -47,30 +47,62 @@ async function main() {
 main();
 
 
-const form = document.getElementById("create-user-form");
-form?.addEventListener("submit", async (e) => {
-  e.preventDefault();
-  const email = document.getElementById("new-email")?.value?.trim();
-  const password = document.getElementById("new-pass")?.value;
-  const role = document.getElementById("new-role")?.value;
 
-  if (!email || !password || !role) {
-    alert("Por favor completa todos los campos.");
-    return;
-  }
-
-  try {
-    // Crear usuario en Supabase Auth
-    const { data: signUpData, error: authError } = await supabase.auth.admin.createUser({
-      email,
-      password,
-      email_confirm: true
-    });
 
     if (authError) throw authError;
 
     // Registrar usuario en la tabla userlist
     const { error: insertError } = await supabase.from("userlist").insert([{ email, role_code: role }]);
+    if (insertError) throw insertError;
+
+    alert("Usuario creado exitosamente.");
+    form.reset();
+    await loadUsers();
+  } catch (err) {
+    console.error("Error creando usuario:", err);
+    alert(`No se pudo crear el usuario: ${err?.message || err}`);
+  }
+});
+
+
+// === Cargar roles dinámicamente en el formulario ===
+async function loadRoles() {
+  const select = document.getElementById("new-role");
+  const { data: roles, error } = await supabase.from("roles").select("*").order("id", { ascending: true });
+  if (error) {
+    console.error("Error cargando roles:", error);
+    alert("No se pudieron cargar los roles.");
+    return;
+  }
+  for (const role of roles) {
+    const opt = document.createElement("option");
+    opt.value = role.id;
+    opt.textContent = role.name;
+    select.appendChild(opt);
+  }
+}
+
+loadRoles();
+
+// === Crear usuario ===
+const form = document.getElementById("create-user-form");
+form?.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const email = document.getElementById("new-email")?.value?.trim();
+  const password = document.getElementById("new-pass")?.value;
+  const role_id = parseInt(document.getElementById("new-role")?.value);
+
+  if (!email || !password || !role_id) {
+    alert("Por favor completa todos los campos.");
+    return;
+  }
+
+  try {
+    // Este paso requiere backend seguro con service_role. Simulado por ahora.
+    // const { data: signUpData, error: authError } = await supabase.auth.admin.createUser({ ... });
+
+    // Agregar a userlist
+    const { error: insertError } = await supabase.from("userlist").insert([{ email, role_id }]);
     if (insertError) throw insertError;
 
     alert("Usuario creado exitosamente.");

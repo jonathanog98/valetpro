@@ -8,20 +8,20 @@ if (form) {
   form.onsubmit = async (e) => {
     e.preventDefault();
 
-    const client_name = $("asesor")?.value || "";
-    const location = $("proposito")?.value || "";
-    const status = $("descripcion")?.value || "";
-    const pickup_time = new Date().toISOString();
+    const pickup = {
+      tag: $("tag")?.value || "",
+      modelo: $("modelo")?.value || "",
+      color: $("color")?.value || "",
+      asesor: $("asesor")?.value || "",
+      descripcion: $("descripcion")?.value || "",
+      proposito: $("proposito")?.value || "",
+      hora: new Date().toISOString()
+    };
 
-    const { data, error } = await supabase.from("pickups").insert([{
-      client_name,
-      location,
-      status,
-      pickup_time
-    }]);
+    const { data, error } = await supabase.from("pickups").insert([pickup]);
 
     if (error) {
-      console.error("Error al insertar en Supabase:", error);
+      console.error("Error al insertar pickup:", error);
       alert("No se pudo guardar el pickup.");
     } else {
       alert("Pickup guardado exitosamente.");

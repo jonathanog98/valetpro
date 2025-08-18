@@ -20,7 +20,7 @@ function redirect() {
 }
 
 async function loadUsers() {
-  const { data, error } = await supabase.from('userlist').select('email, role_id').order('email');
+  const { data, error } = await supabase.from('userlist').select('email, roles(name)').order('email');
   const table = document.getElementById('table');
   table.innerHTML = '';
 
@@ -34,7 +34,7 @@ async function loadUsers() {
     const row = document.createElement('tr');
     row.innerHTML = `
       <td>${user.email}</td>
-      <td>${user.role_id || 'Sin rol'}</td>
+      <td>${user.roles?.name || 'Sin rol'}</td>
     `;
     table.appendChild(row);
   }

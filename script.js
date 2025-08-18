@@ -10,6 +10,13 @@ form?.addEventListener('submit', async (event) => {
   event.preventDefault();
 
   const proposito = document.getElementById('proposito').value;
+    const tag = document.getElementById('tag').value;
+    const vin = document.getElementById('vin').value;
+    const modelo = document.getElementById('modelo').value;
+    const color = document.getElementById('color').value;
+    const asesor = document.getElementById('asesor').value;
+    const descripcion = document.getElementById('descripcion').value;
+
 
   const {
     data: { user },
@@ -83,4 +90,51 @@ async function cargar(tabla, sectionId) {
     div.classList.add("pickup-card");
     section.appendChild(div);
   });
+}
+
+const statusCajeroOptions = [
+  "Complete", "Tiene Doc", "No ha pagado", "Falta book", "En Camino",
+  "Pert", "Dudas", "Se va sin docs", "Llaves a asesor", "Lav. Cortesía",
+  "Test Drive", "Llevar a taller", "Inspección", "Valet", "Poner a Cargar", "Grua"
+];
+
+const statusJockeyOptions = [
+  "Arriba", "Subiendo", "Lavado", "Secado", "Working", "No lavar",
+  "Ubicada", "Detailing", "Zona Blanca"
+];
+
+function createDropdown(value, options, onChange) {
+  const select = document.createElement('select');
+  options.forEach(opt => {
+    const option = document.createElement('option');
+    option.value = opt;
+    option.textContent = opt;
+    if (opt === value) option.selected = true;
+    select.appendChild(option);
+  });
+  select.addEventListener('change', onChange);
+  return select;
+}
+
+async function handleStatusUpdate(pickup, column, newValue) {
+  const update = {};
+  update[column] = newValue;
+
+  await supabase.from("recogiendo").update(update).eq("id", pickup.id);
+
+  if ((column === "status_cajero" || column === "status_jockey")) {
+    const { data: updatedPickup } = await supabase
+      .from("recogiendo")
+      .select("*")
+      .eq("id", pickup.id)
+      .single();
+
+    if (updatedPickup.status_cajero === "Complete" &&
+        updatedPickup.status_jockey === "Arriba") {
+      const { error } = await supabase.from("autos_entregados").insert([updatedPickup]);
+      if (!error) {
+        await supabase.from("recogiendo").delete().eq("id", pickup.id);
+      }
+    }
+  }
 }

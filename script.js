@@ -10,19 +10,12 @@ form?.addEventListener('submit', async (event) => {
   event.preventDefault();
 
   const proposito = document.getElementById('proposito').value;
-  const tag = document.getElementById('tag')?.value || null;
-  const vin = document.getElementById('vin')?.value || null;
-  const modelo = document.getElementById('modelo')?.value || null;
-  const color = document.getElementById('color')?.value || null;
-  const asesor = document.getElementById('asesor')?.value || null;
-  const descripcion = document.getElementById('descripcion')?.value || null;
 
   const {
     data: { user },
     error: userError
   } = await supabase.auth.getUser();
 
-  if (userError || !user) {
     alert("No se pudo obtener el usuario.");
     return;
   }
@@ -88,7 +81,6 @@ async function cargar(tabla, sectionId) {
   data.forEach(item => {
     const div = document.createElement("div");
     div.classList.add("pickup-card");
-    div.textContent = Object.values(item).join(" | ");
     section.appendChild(div);
   });
 }

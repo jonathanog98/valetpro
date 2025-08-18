@@ -20,7 +20,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const color = $('color')?.value;
     const asesor = $('asesor')?.value;
     const descripcion = $('descripcion')?.value;
-    const user = sessionStorage.getItem('usuario');
+    const { data: { user } } = await supabase.auth.getUser();
 
     const data = {
       tag,
@@ -28,7 +28,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       color,
       asesor,
       descripcion,
-      user_id: user,
+      user_id: user.id,
       hora: new Date().toISOString()
     };
 

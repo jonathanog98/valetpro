@@ -1,14 +1,10 @@
 
-// script.js (inserción de pickups + sessionStorage + VIN + permisos + mover en_sala→recogiendo)
-
 import { supabase } from './supabase.js';
 
 document.addEventListener("DOMContentLoaded", async function () {
-  // ====== SESIÓN (sessionStorage) ======
   const userRole = sessionStorage.getItem("rol") || "Guest";
   const userEmail = sessionStorage.getItem("usuario") || "";
 
-  // ====== LISTAS DE STATUS ======
   const cajeroStatuses = [
     "Complete", "Tiene Doc", "No ha pagado", "Falta book", "En Camino", "Pert",
     "Dudas", "Se va sin docs", "Llaves a asesor", "Lav. Cortesía", "Test Drive",
@@ -25,7 +21,6 @@ document.addEventListener("DOMContentLoaded", async function () {
     "Call Center", "Cargando", "Inspección"
   ];
 
-  // ====== VIN DECODER ======
   async function handleVinBlur() {
     const vinInput = document.getElementById("vin");
     if (!vinInput) return;
@@ -46,7 +41,6 @@ document.addEventListener("DOMContentLoaded", async function () {
   }
   window.handleVinBlur = handleVinBlur;
 
-  // ====== UI HELPERS ======
   function createDropdown(options, selectedValue, onChange, disabled) {
     const select = document.createElement("select");
     select.disabled = !!disabled;
@@ -83,7 +77,7 @@ document.addEventListener("DOMContentLoaded", async function () {
         const { error } = await supabase.from(table).delete().eq("id", id);
         if (error) {
           console.error("Error eliminando:", error);
-          alert("No se pudo eliminar. Revisa la consola.");
+          alert(`No se pudo eliminar. ${error.message || ''}`);
         } else {
           await loadData();
         }
@@ -92,17 +86,24 @@ document.addEventListener("DOMContentLoaded", async function () {
     return btn;
   }
 
-  // ====== HELPERS DE FECHA/HORA ======
-  function horaActual() {
-    try {
-      return new Date().toLocaleTimeString('es-PR', { hour: '2-digit', minute: '2-digit' });
-    } catch {
-      const d = new Date();
-      return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
-    }
+  // === SELECT robusto: primero 'hora', luego 'created_at', y último sin orden ===
+  async function fetchTable(table) {
+    // intenta ordenar por 'hora' (tu columna de timestamp/tiempo)
+    let r1 = await supabase.from(table).select("*").order("hora", { ascending: false });
+    if (!r1.error) return r1;
+
+    console.warn(`Fallo order(hora) en ${table}. Probando created_at…`, r1.error);
+
+    // si falla, intenta 'created_at'
+    let r2 = await supabase.from(table).select("*").order("created_at", { ascending: false });
+    if (!r2.error) return r2;
+
+    console.warn(`Fallo order(created_at) en ${table}. Probando sin order…`, r2.error);
+
+    // último recurso, sin order
+    return await supabase.from(table).select("*");
   }
 
-  // ====== CARGA DE TABLAS DESDE SUPABASE ======
   async function loadData() {
     const roles = {
       admin: userRole === "Admin",
@@ -112,37 +113,18 @@ document.addEventListener("DOMContentLoaded", async function () {
     };
 
     const pickups = [
-      {
-        table: "en_sala",
-        elementId: "tabla-waiter",
-        fields: ["hora", "tag", "modelo", "color", "asesor", "descripcion", "status", "promise_time"]
-      },
-      {
-        table: "recogiendo",
-        elementId: "tabla-recogiendo",
-        fields: ["hora", "tag", "modelo", "color", "asesor", "descripcion", "status_cajero", "status_jockey"]
-      },
-      {
-        table: "loaners",
-        elementId: "tabla-loaner",
-        fields: ["hora", "nombre_cliente"]
-      },
-      {
-        table: "transportaciones",
-        elementId: "tabla-transporte",
-        fields: ["hora", "nombre", "telefono", "direccion", "personas", "asignado"]
-      }
+      { table: "en_sala", elementId: "tabla-waiter", fields: ["hora", "tag", "modelo", "color", "asesor", "descripcion", "status", "promise_time"] },
+      { table: "recogiendo", elementId: "tabla-recogiendo", fields: ["hora", "tag", "modelo", "color", "asesor", "descripcion", "status_cajero", "status_jockey"] },
+      { table: "loaners", elementId: "tabla-loaner", fields: ["hora", "nombre_cliente"] },
+      { table: "transportaciones", elementId: "tabla-transporte", fields: ["hora", "nombre", "telefono", "direccion", "personas", "asignado"] }
     ];
 
     for (let { table, elementId, fields } of pickups) {
       const tableEl = document.getElementById(elementId);
       if (!tableEl) continue;
       const tbody = tableEl.querySelector("tbody") || tableEl;
-      const { data, error } = await supabase
-        .from(table)
-        .select("*")
-        .order("created_at", { ascending: false });
 
+      const { data, error } = await fetchTable(table);
       if (error) {
         console.error(`Error consultando ${table}:`, error);
         continue;
@@ -153,90 +135,64 @@ document.addEventListener("DOMContentLoaded", async function () {
       for (let row of (data || [])) {
         const tr = document.createElement("tr");
 
-        fields.forEach(field => {
+        for (let field of fields) {
           const td = document.createElement("td");
 
           if (field === "status_cajero" && (roles.cajero || roles.admin)) {
-            td.appendChild(createDropdown(
-              cajeroStatuses,
-              row[field],
-              async (val) => {
-                const { error } = await supabase.from(table).update({ status_cajero: val }).eq("id", row.id);
-                if (error) console.error("Error actualizando status_cajero:", error);
-              },
-              false
-            ));
+            td.appendChild(createDropdown(cajeroStatuses, row[field], async (val) => {
+              const { error } = await supabase.from(table).update({ status_cajero: val }).eq("id", row.id);
+              if (error) console.error("Error actualizando status_cajero:", error);
+            }, false));
           } else if (field === "status_jockey" && (roles.jockey || roles.admin)) {
-            td.appendChild(createDropdown(
-              jockeyStatuses,
-              row[field],
-              async (val) => {
-                const { error } = await supabase.from(table).update({ status_jockey: val }).eq("id", row.id);
-                if (error) console.error("Error actualizando status_jockey:", error);
-              },
-              false
-            ));
+            td.appendChild(createDropdown(jockeyStatuses, row[field], async (val) => {
+              const { error } = await supabase.from(table).update({ status_jockey: val }).eq("id", row.id);
+              if (error) console.error("Error actualizando status_jockey:", error);
+            }, false));
           } else if (field === "status" && table === "en_sala" && (roles.admin || roles.cajero)) {
-            td.appendChild(createDropdown(
-              enSalaStatuses,
-              row[field],
-              async (val) => {
-                // 1) Actualizar el status en en_sala
-                const { error } = await supabase.from(table).update({ status: val }).eq("id", row.id);
-                if (error) {
-                  console.error("Error actualizando status (en_sala):", error);
-                  return;
+            td.appendChild(createDropdown(enSalaStatuses, row[field], async (val) => {
+              const { error } = await supabase.from(table).update({ status: val }).eq("id", row.id);
+              if (error) {
+                console.error("Error actualizando status (en_sala):", error);
+                return;
+              }
+              if (String(val).toLowerCase() === "falta book") {
+                try {
+                  const insertPayload = {
+                    hora: row.hora,
+                    tag: row.tag,
+                    modelo: row.modelo,
+                    color: row.color,
+                    asesor: row.asesor,
+                    descripcion: row.descripcion,
+                    status_cajero: "Falta book"
+                  };
+                  const { error: insertError } = await supabase.from("recogiendo").insert([insertPayload]);
+                  if (insertError) throw insertError;
+                  const { error: deleteError } = await supabase.from("en_sala").delete().eq("id", row.id);
+                  if (deleteError) throw deleteError;
+                  await loadData();
+                } catch (e) {
+                  console.error("Error moviendo registro a Recogiendo:", e);
+                  alert(`No se pudo mover a Recogiendo: ${e.message || e}`);
                 }
-                // 2) Si es "Falta book" (case-insensitive), mover a 'recogiendo' con status_cajero = "Falta book"
-                if (String(val).toLowerCase() === "falta book") {
-                  try {
-                    const insertPayload = {
-                      hora: row.hora,
-                      tag: row.tag,
-                      modelo: row.modelo,
-                      color: row.color,
-                      asesor: row.asesor,
-                      descripcion: row.descripcion,
-                      status_cajero: "Falta book"
-                    };
-                    const { error: insertError } = await supabase.from("recogiendo").insert([insertPayload]);
-                    if (insertError) throw insertError;
-
-                    const { error: deleteError } = await supabase.from("en_sala").delete().eq("id", row.id);
-                    if (deleteError) throw deleteError;
-
-                    await loadData();
-                  } catch (e) {
-                    console.error("Error moviendo registro a Recogiendo:", e);
-                  }
-                }
-              },
-              false
-            ));
+              }
+            }, false));
           } else if (field === "promise_time" && table === "en_sala" && (roles.admin || roles.cajero)) {
-            td.appendChild(createTextInput(
-              row[field],
-              async (val) => {
-                const { error } = await supabase.from(table).update({ promise_time: val }).eq("id", row.id);
-                if (error) console.error("Error actualizando promise_time:", error);
-              },
-              false
-            ));
+            td.appendChild(createTextInput(row[field], async (val) => {
+              const { error } = await supabase.from(table).update({ promise_time: val }).eq("id", row.id);
+              if (error) console.error("Error actualizando promise_time:", error);
+            }, false));
           } else if (field === "asignado" && table === "transportaciones" && (roles.admin || roles.transporte)) {
-            td.appendChild(createTextInput(
-              row[field],
-              async (val) => {
-                const { error } = await supabase.from(table).update({ asignado: val }).eq("id", row.id);
-                if (error) console.error("Error actualizando asignado (transportaciones):", error);
-              },
-              false
-            ));
+            td.appendChild(createTextInput(row[field], async (val) => {
+              const { error } = await supabase.from(table).update({ asignado: val }).eq("id", row.id);
+              if (error) console.error("Error actualizando asignado (transportaciones):", error);
+            }, false));
           } else {
             td.textContent = row[field] ?? "";
           }
 
           tr.appendChild(td);
-        });
+        }
 
         const addDelete =
           (userRole === "Admin" || userRole === "Cajero") &&
@@ -255,15 +211,21 @@ document.addEventListener("DOMContentLoaded", async function () {
 
   await loadData();
 
-  // ====== INSERTAR NUEVOS PICKUPS (FORMULARIO) ======
+  function horaActual() {
+    try {
+      return new Date().toLocaleTimeString('es-PR', { hour: '2-digit', minute: '2-digit' });
+    } catch {
+      const d = new Date();
+      return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+    }
+  }
+
   const form = document.getElementById("pickup-form");
   form?.addEventListener("submit", async (e) => {
     e.preventDefault();
-
     const proposito = document.getElementById("proposito")?.value;
     if (!proposito) return;
 
-    // Campos comunes
     const hora = horaActual();
     const tag = document.getElementById("tag")?.value?.trim() || null;
     const modelo = document.getElementById("modelo")?.value?.trim() || null;
@@ -297,21 +259,18 @@ document.addEventListener("DOMContentLoaded", async function () {
         if (error) throw error;
       }
 
-      // Limpiar y recargar
       form.reset();
       document.getElementById("proposito").value = "Recogiendo";
-      const evt = new Event("change");
-      document.getElementById("proposito").dispatchEvent(evt);
+      document.getElementById("proposito").dispatchEvent(new Event("change"));
 
       await loadData();
       alert("Pickup creado correctamente.");
     } catch (err) {
       console.error("Error insertando pickup:", err);
-      alert("No se pudo crear el pickup. Revisa la consola para más detalles.");
+      alert(`No se pudo crear el pickup. ${err?.message || err}`);
     }
   });
 
-  // VIN blur (por si el formulario de crear pickup está presente)
   const vinInput = document.getElementById("vin");
   if (vinInput) {
     vinInput.addEventListener("blur", handleVinBlur);

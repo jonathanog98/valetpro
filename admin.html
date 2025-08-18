@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -64,32 +65,6 @@
       font-weight: bold;
     }
   </style>
-
-  <script type="module">
-    import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
-
-    const supabase = createClient(
-      'https://sqllpksunzuyzkzgmhuo.supabase.co',
-      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNxbGxwa3N1bnp1eXpremdtaHVvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTUyNjIzNjQsImV4cCI6MjA3MDgzODM2NH0.Oesm9_iFmdJRQORSWL2AQUy3ynQrQX7H0UY5YA2Ow7A'
-    );
-
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) {
-      window.location.replace('login.html');
-    } else {
-      const { data: roleData, error } = await supabase
-        .from('current_user_roles')
-        .select('role_code')
-        .single();
-
-      if (error || roleData?.role_code !== 'Admin') {
-        await supabase.auth.signOut();
-        sessionStorage.clear();
-        window.location.replace('login.html');
-      }
-    }
-  </script>
-
 </head>
 <body>
   <div class="container">
@@ -118,15 +93,14 @@
 
     <section class="table-wrapper">
       <h2>Usuarios existentes</h2>
-      <table>
+      <table id="table">
         <thead>
           <tr>
             <th>Email</th>
             <th>Rol</th>
-            <th>Acciones</th>
           </tr>
         </thead>
-        <tbody id="users-tbody"></tbody>
+        <tbody></tbody>
       </table>
     </section>
   </div>

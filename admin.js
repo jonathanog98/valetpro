@@ -45,3 +45,39 @@ async function main() {
 }
 
 main();
+
+
+const form = document.getElementById("create-user-form");
+form?.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const email = document.getElementById("new-email")?.value?.trim();
+  const password = document.getElementById("new-pass")?.value;
+  const role = document.getElementById("new-role")?.value;
+
+  if (!email || !password || !role) {
+    alert("Por favor completa todos los campos.");
+    return;
+  }
+
+  try {
+    // Crear usuario en Supabase Auth
+    const { data: signUpData, error: authError } = await supabase.auth.admin.createUser({
+      email,
+      password,
+      email_confirm: true
+    });
+
+    if (authError) throw authError;
+
+    // Registrar usuario en la tabla userlist
+    const { error: insertError } = await supabase.from("userlist").insert([{ email, role_code: role }]);
+    if (insertError) throw insertError;
+
+    alert("Usuario creado exitosamente.");
+    form.reset();
+    await loadUsers();
+  } catch (err) {
+    console.error("Error creando usuario:", err);
+    alert(`No se pudo crear el usuario: ${err?.message || err}`);
+  }
+});

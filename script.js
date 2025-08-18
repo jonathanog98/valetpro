@@ -28,7 +28,7 @@ tr.blink-red    { animation: blinkRed 1s linear infinite; }
     "Llevar a taller","Inspección","Valet","Poner a Cargar","Grua"
   ];
   const jockeyStatuses = [
-    "Arriba","Subiendo","Lavado","Secado","Working","No lavar","Ubicada","Detailing","Zona Blanca"
+    "--","Arriba","Subiendo","Lavado","Secado","Working","No lavar","Ubicada","Detailing","Zona Blanca"
   ];
   const enSalaStatuses = [
     "Working","Falta Book","Listo","Grua","Lav. Cortesía","Status Asesor","Call Center","Cargando","Inspección"
@@ -281,6 +281,52 @@ tr.blink-red    { animation: blinkRed 1s linear infinite; }
       }
 
       tbody.innerHTML = "";
+
+      // Verificación automática: mover a autos_entregados si corresponde
+      if (table === "recogiendo") {
+        for (const row of data) {
+          maybeMoveToEntregados(row); // no se usa await para mantener la UI fluida
+        }
+      }
+
+      // Verificación automática: mover de en_sala a recogiendo si status es "Falta book"
+      if (table === "en_sala") {
+        for (const row of data) {
+          const status = String(row.status ?? "").toLowerCase();
+          if (status === "falta book") {
+            (async () => {
+              try {
+                const insertPayload = {
+                  hora: row.hora || horaActual12h(),
+                  tag: row.tag,
+                  modelo: row.modelo,
+                  color: row.color,
+                  asesor: row.asesor,
+                  descripcion: row.descripcion,
+                  status_cajero: "Falta book",
+                  status_jockey: "--"
+                };
+                const { error: insErr } = await supabase.from("recogiendo").insert([insertPayload]);
+                if (insErr) throw insErr;
+                const { error: delErr } = await supabase.from("en_sala").delete().eq("id", row.id);
+                if (delErr) throw delErr;
+                await loadData();
+              } catch (e) {
+                console.error("Auto-move en_sala -> recogiendo:", e);
+              }
+            })();
+          }
+        }
+      }
+
+
+      // Verificación automática: mover a autos_entregados si corresponde
+      if (table === "recogiendo") {
+        for (const row of data) {
+          maybeMoveToEntregados(row); // no se usa await para mantener la UI fluida
+        }
+      }
+
 
       // Promedio en Autos Entregados
       if (table === "autos_entregados") {

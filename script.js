@@ -1,4 +1,18 @@
 
+async function deletePickup(table, id) {
+  const confirmDelete = confirm("¿Estás seguro que deseas eliminar este pickup?");
+  if (!confirmDelete) return;
+
+  const { error } = await supabase.from(table).delete().eq('id', id);
+  if (error) {
+    console.error('Error eliminando pickup:', error.message);
+  } else {
+    location.reload();
+  }
+}
+
+
+
 import { supabase } from './supabase.js';
 
 document.addEventListener('DOMContentLoaded', async () => {
@@ -134,43 +148,43 @@ async function loadRecogiendo() {
   tbody.innerHTML = '';
   data.forEach(row => {
     const statusCajero = (role === 'Cajero' || role === 'Admin') ? `
-      <select onchange="updateRecogiendoStatus('${row.id}', 'status_cajero', this.value)">
-        <option value="">—</option>
-<option value="Complete">${row.status_cajero === "Complete" ? "selected" : ""}Complete</option>
-<option value="Tiene Doc">${row.status_cajero === "Tiene Doc" ? "selected" : ""}Tiene Doc</option>
-<option value="No ha pagado">${row.status_cajero === "No ha pagado" ? "selected" : ""}No ha pagado</option>
-<option value="Falta book">${row.status_cajero === "Falta book" ? "selected" : ""}Falta book</option>
-<option value="En Camino">${row.status_cajero === "En Camino" ? "selected" : ""}En Camino</option>
-<option value="Pert">${row.status_cajero === "Pert" ? "selected" : ""}Pert</option>
-<option value="Dudas">${row.status_cajero === "Dudas" ? "selected" : ""}Dudas</option>
-<option value="Se va sin docs">${row.status_cajero === "Se va sin docs" ? "selected" : ""}Se va sin docs</option>
-<option value="Llaves a asesor">${row.status_cajero === "Llaves a asesor" ? "selected" : ""}Llaves a asesor</option>
-<option value="Lav. Cortesía">${row.status_cajero === "Lav. Cortesía" ? "selected" : ""}Lav. Cortesía</option>
-<option value="Test Drive">${row.status_cajero === "Test Drive" ? "selected" : ""}Test Drive</option>
-<option value="Llevar a taller">${row.status_cajero === "Llevar a taller" ? "selected" : ""}Llevar a taller</option>
-<option value="Inspección">${row.status_cajero === "Inspección" ? "selected" : ""}Inspección</option>
-<option value="Valet">${row.status_cajero === "Valet" ? "selected" : ""}Valet</option>
-<option value="Poner a Cargar">${row.status_cajero === "Poner a Cargar" ? "selected" : ""}Poner a Cargar</option>
-<option value="Grua">${row.status_cajero === "Grua" ? "selected" : ""}Grua</option>
-      </select>
+      <select onchange="updateRecogiendoStatus('{row.id}', 'status_cajero', this.value')">
+<option value="">—</option>
+<option value="Complete">{row.status_cajero === "Complete" ? "selected" : ""}Complete</option>
+<option value="Dudas">{row.status_cajero === "Dudas" ? "selected" : ""}Dudas</option>
+<option value="En Camino">{row.status_cajero === "En Camino" ? "selected" : ""}En Camino</option>
+<option value="Falta book">{row.status_cajero === "Falta book" ? "selected" : ""}Falta book</option>
+<option value="Grua">{row.status_cajero === "Grua" ? "selected" : ""}Grua</option>
+<option value="Inspección">{row.status_cajero === "Inspección" ? "selected" : ""}Inspección</option>
+<option value="Lav. Cortesía">{row.status_cajero === "Lav. Cortesía" ? "selected" : ""}Lav. Cortesía</option>
+<option value="Llaves a asesor">{row.status_cajero === "Llaves a asesor" ? "selected" : ""}Llaves a asesor</option>
+<option value="Llevar a taller">{row.status_cajero === "Llevar a taller" ? "selected" : ""}Llevar a taller</option>
+<option value="No ha pagado">{row.status_cajero === "No ha pagado" ? "selected" : ""}No ha pagado</option>
+<option value="Pert">{row.status_cajero === "Pert" ? "selected" : ""}Pert</option>
+<option value="Poner a Cargar">{row.status_cajero === "Poner a Cargar" ? "selected" : ""}Poner a Cargar</option>
+<option value="Se va sin docs">{row.status_cajero === "Se va sin docs" ? "selected" : ""}Se va sin docs</option>
+<option value="Test Drive">{row.status_cajero === "Test Drive" ? "selected" : ""}Test Drive</option>
+<option value="Tiene Doc">{row.status_cajero === "Tiene Doc" ? "selected" : ""}Tiene Doc</option>
+<option value="Valet">{row.status_cajero === "Valet" ? "selected" : ""}Valet</option>
+</select>
         <option value="">—</option>
         <option value="Abierto" ${row.status_cajero === 'Abierto' ? 'selected' : ''}>Abierto</option>
         <option value="Pagado" ${row.status_cajero === 'Pagado' ? 'selected' : ''}>Pagado</option>
       </select>` : (row.status_cajero || '—');
 
     const statusJockey = (role === 'Jockey' || role === 'Admin') ? `
-      <select onchange="updateRecogiendoStatus('${row.id}', 'status_jockey', this.value)">
-        <option value="">—</option>
-<option value="Arriba">${row.status_jockey === "Arriba" ? "selected" : ""}Arriba</option>
-<option value="Subiendo">${row.status_jockey === "Subiendo" ? "selected" : ""}Subiendo</option>
-<option value="Lavado">${row.status_jockey === "Lavado" ? "selected" : ""}Lavado</option>
-<option value="Secado">${row.status_jockey === "Secado" ? "selected" : ""}Secado</option>
-<option value="Working">${row.status_jockey === "Working" ? "selected" : ""}Working</option>
-<option value="No lavar">${row.status_jockey === "No lavar" ? "selected" : ""}No lavar</option>
-<option value="Ubicada">${row.status_jockey === "Ubicada" ? "selected" : ""}Ubicada</option>
-<option value="Detailing">${row.status_jockey === "Detailing" ? "selected" : ""}Detailing</option>
-<option value="Zona Blanca">${row.status_jockey === "Zona Blanca" ? "selected" : ""}Zona Blanca</option>
-      </select>
+      <select onchange="updateRecogiendoStatus('{row.id}', 'status_jockey', this.value')">
+<option value="">—</option>
+<option value="Arriba">{row.status_jockey === "Arriba" ? "selected" : ""}Arriba</option>
+<option value="Detailing">{row.status_jockey === "Detailing" ? "selected" : ""}Detailing</option>
+<option value="Lavado">{row.status_jockey === "Lavado" ? "selected" : ""}Lavado</option>
+<option value="No lavar">{row.status_jockey === "No lavar" ? "selected" : ""}No lavar</option>
+<option value="Secado">{row.status_jockey === "Secado" ? "selected" : ""}Secado</option>
+<option value="Subiendo">{row.status_jockey === "Subiendo" ? "selected" : ""}Subiendo</option>
+<option value="Ubicada">{row.status_jockey === "Ubicada" ? "selected" : ""}Ubicada</option>
+<option value="Working">{row.status_jockey === "Working" ? "selected" : ""}Working</option>
+<option value="Zona Blanca">{row.status_jockey === "Zona Blanca" ? "selected" : ""}Zona Blanca</option>
+</select>
         <option value="">—</option>
         <option value="Pendiente" ${row.status_jockey === 'Pendiente' ? 'selected' : ''}>Pendiente</option>
         <option value="En camino" ${row.status_jockey === 'En camino' ? 'selected' : ''}>En camino</option>
@@ -187,7 +201,9 @@ async function loadRecogiendo() {
       <td>${row.descripcion || ''}</td>
       <td>${statusCajero}</td>
       <td>${statusJockey}</td>
-      <td>—</td>`;
+      <td>${
+        (role === 'Cajero' || role === 'Admin') ? `<button onclick="deletePickup('recogiendo', '${row.id}')">🗑️</button>` : '—'
+    }</td>`;
     tbody.appendChild(tr);
   });
 }
@@ -206,8 +222,19 @@ async function loadEnSala() {
       <td>${row.color || ''}</td>
       <td>${row.asesor || ''}</td>
       <td>${row.descripcion || ''}</td>
-      <td>${
-        (role === 'Admin') ? `<input type="text" value="${row.status || ''}" onchange="updateEnSala('${row.id}', 'status', this.value)" />` : (row.status || '-')
+      <td>$ {
+        (role === 'Admin') ? `<select onchange="updateEnSala('${row.id}', 'status', this.value)">
+          <option value="">—</option>
+          <option value="Working">{row.status === "Working" ? "selected" : ""}Working</option>
+<option value="Falta Book">{row.status === "Falta Book" ? "selected" : ""}Falta Book</option>
+<option value="Listo">{row.status === "Listo" ? "selected" : ""}Listo</option>
+<option value="Grua">{row.status === "Grua" ? "selected" : ""}Grua</option>
+<option value="Lav. Cortesía">{row.status === "Lav. Cortesía" ? "selected" : ""}Lav. Cortesía</option>
+<option value="Status Asesor">{row.status === "Status Asesor" ? "selected" : ""}Status Asesor</option>
+<option value="Call Center">{row.status === "Call Center" ? "selected" : ""}Call Center</option>
+<option value="Cargando">{row.status === "Cargando" ? "selected" : ""}Cargando</option>
+<option value="Inspección">{row.status === "Inspección" ? "selected" : ""}Inspección</option>
+        </select>` : (row.status || '-')
       }</td>
       <td>${
         (role === 'Admin') ? `<input type="text" value="${row.promise_time || ''}" onchange="updateEnSala('${row.id}', 'promise_time', this.value)" />` : (row.promise_time || '-')
@@ -226,7 +253,9 @@ async function loadLoaners() {
     tr.innerHTML = `
       <td>${formatHora(row.hora)}</td>
       <td>${row.nombre || ''}</td>
-      <td>—</td>`;
+      <td>${
+        (role === 'Cajero' || role === 'Admin') ? `<button onclick="deletePickup('recogiendo', '${row.id}')">🗑️</button>` : '—'
+    }</td>`;
     tbody.appendChild(tr);
   });
 }
@@ -249,7 +278,9 @@ async function loadTransportacion() {
       <td>${row.direccion || ''}</td>
       <td>${row.personas || ''}</td>
       <td>${asignadoEditable}</td>
-      <td>—</td>`;
+      <td>${
+        (role === 'Cajero' || role === 'Admin') ? `<button onclick="deletePickup('recogiendo', '${row.id}')">🗑️</button>` : '—'
+    }</td>`;
     tbody.appendChild(tr);
   });
 }

@@ -24,7 +24,7 @@ tr.blink-red    { animation: blinkRed 1s linear infinite; }
 
   // ====== Listas de status ======
   const cajeroStatuses = [
-    "Complete","Tiene Doc","No ha pagado","Falta book","En Camino","Pert",
+    "--", "Complete","Tiene Doc","No ha pagado","Falta book","En Camino","Pert",
     "Dudas","Se va sin docs","Llaves a asesor","Lav. Cortesía","Test Drive",
     "Llevar a taller","Inspección","Valet","Poner a Cargar","Grua"
   ];
@@ -252,7 +252,7 @@ tr.blink-red    { animation: blinkRed 1s linear infinite; }
           const td = document.createElement("td");
 
           if (field === "status_cajero" && (roles.cajero || roles.admin)) {
-            td.appendChild(createDropdown(cajeroStatuses, row[field], async (val) => {
+            td.appendChild(createDropdown(cajeroStatuses, row[field] ?? "--", async (val) => {
               const { error } = await supabase.from(table).update({ status_cajero: val }).eq("id", row.id);
               if (error) console.error("Error actualizando status_cajero:", error);
             }, false));
@@ -348,7 +348,7 @@ tr.blink-red    { animation: blinkRed 1s linear infinite; }
     try {
       if (proposito === "Recogiendo") {
         // status_cajero por defecto en BLANCO (no seteamos valor)
-        const payload = { hora, tag, modelo, color, asesor, descripcion };
+        const payload = { hora, tag, modelo, color, asesor, descripcion, status_cajero: "--" };
         const { error } = await supabase.from("recogiendo").insert([payload]);
         if (error) throw error;
       } else if (proposito === "Waiter") {

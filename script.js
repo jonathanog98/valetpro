@@ -1,18 +1,4 @@
 
-async function deletePickup(table, id) {
-  const confirmDelete = confirm("¿Estás seguro que deseas eliminar este pickup?");
-  if (!confirmDelete) return;
-
-  const { error } = await supabase.from(table).delete().eq('id', id);
-  if (error) {
-    console.error('Error eliminando pickup:', error.message);
-  } else {
-    location.reload();
-  }
-}
-
-
-
 import { supabase } from './supabase.js';
 
 document.addEventListener('DOMContentLoaded', async () => {
@@ -201,9 +187,7 @@ async function loadRecogiendo() {
       <td>${row.descripcion || ''}</td>
       <td>${statusCajero}</td>
       <td>${statusJockey}</td>
-      <td>${
-        (role === 'Cajero' || role === 'Admin') ? `<button onclick="deletePickup('recogiendo', '${row.id}')">🗑️</button>` : '—'
-    }</td>`;
+      <td>—</td>`;
     tbody.appendChild(tr);
   });
 }
@@ -222,19 +206,8 @@ async function loadEnSala() {
       <td>${row.color || ''}</td>
       <td>${row.asesor || ''}</td>
       <td>${row.descripcion || ''}</td>
-      <td>$ {
-        (role === 'Admin') ? `<select onchange="updateEnSala('${row.id}', 'status', this.value)">
-          <option value="">—</option>
-          <option value="Working">{row.status === "Working" ? "selected" : ""}Working</option>
-<option value="Falta Book">{row.status === "Falta Book" ? "selected" : ""}Falta Book</option>
-<option value="Listo">{row.status === "Listo" ? "selected" : ""}Listo</option>
-<option value="Grua">{row.status === "Grua" ? "selected" : ""}Grua</option>
-<option value="Lav. Cortesía">{row.status === "Lav. Cortesía" ? "selected" : ""}Lav. Cortesía</option>
-<option value="Status Asesor">{row.status === "Status Asesor" ? "selected" : ""}Status Asesor</option>
-<option value="Call Center">{row.status === "Call Center" ? "selected" : ""}Call Center</option>
-<option value="Cargando">{row.status === "Cargando" ? "selected" : ""}Cargando</option>
-<option value="Inspección">{row.status === "Inspección" ? "selected" : ""}Inspección</option>
-        </select>` : (row.status || '-')
+      <td>${
+        (role === 'Admin') ? `<input type="text" value="${row.status || ''}" onchange="updateEnSala('${row.id}', 'status', this.value)" />` : (row.status || '-')
       }</td>
       <td>${
         (role === 'Admin') ? `<input type="text" value="${row.promise_time || ''}" onchange="updateEnSala('${row.id}', 'promise_time', this.value)" />` : (row.promise_time || '-')
@@ -253,9 +226,7 @@ async function loadLoaners() {
     tr.innerHTML = `
       <td>${formatHora(row.hora)}</td>
       <td>${row.nombre || ''}</td>
-      <td>${
-        (role === 'Cajero' || role === 'Admin') ? `<button onclick="deletePickup('recogiendo', '${row.id}')">🗑️</button>` : '—'
-    }</td>`;
+      <td>—</td>`;
     tbody.appendChild(tr);
   });
 }
@@ -278,9 +249,7 @@ async function loadTransportacion() {
       <td>${row.direccion || ''}</td>
       <td>${row.personas || ''}</td>
       <td>${asignadoEditable}</td>
-      <td>${
-        (role === 'Cajero' || role === 'Admin') ? `<button onclick="deletePickup('recogiendo', '${row.id}')">🗑️</button>` : '—'
-    }</td>`;
+      <td>—</td>`;
     tbody.appendChild(tr);
   });
 }

@@ -1,4 +1,5 @@
 import { supabase } from './supabase.js';
+
 async function verifyAdminAccess() {
   const { data: { session } } = await supabase.auth.getSession();
   if (!session) return redirect();
@@ -19,7 +20,7 @@ function redirect() {
 }
 
 async function loadUsers() {
-  const { data, error } = await supabase.from('userlist').select('*');
+  const { data, error } = await supabase.from('userlist').select('email, role_id').order('email');
   const table = document.getElementById('table');
   table.innerHTML = '';
 
@@ -33,39 +34,12 @@ async function loadUsers() {
     const row = document.createElement('tr');
     row.innerHTML = `
       <td>${user.email}</td>
-      <td>${user.role_code}</td>
+      <td>${user.role_id || 'Sin rol'}</td>
     `;
     table.appendChild(row);
   }
 }
 
-async function main() {
-  await verifyAdminAccess();
-  await loadUsers();
-}
-
-main();
-
-
-
-
-    if (authError) throw authError;
-
-    // Registrar usuario en la tabla userlist
-    const { error: insertError } = await supabase.from("userlist").insert([{ email, role_code: role }]);
-    if (insertError) throw insertError;
-
-    alert("Usuario creado exitosamente.");
-    form.reset();
-    await loadUsers();
-  } catch (err) {
-    console.error("Error creando usuario:", err);
-    alert(`No se pudo crear el usuario: ${err?.message || err}`);
-  }
-});
-
-
-// === Cargar roles dinámicamente en el formulario ===
 async function loadRoles() {
   const select = document.getElementById("new-role");
   const { data: roles, error } = await supabase.from("roles").select("*").order("id", { ascending: true });
@@ -82,11 +56,7 @@ async function loadRoles() {
   }
 }
 
-loadRoles();
-
-// === Crear usuario ===
-const form = document.getElementById("create-user-form");
-form?.addEventListener("submit", async (e) => {
+document.getElementById("create-user-form")?.addEventListener("submit", async (e) => {
   e.preventDefault();
   const email = document.getElementById("new-email")?.value?.trim();
   const password = document.getElementById("new-pass")?.value;
@@ -98,18 +68,23 @@ form?.addEventListener("submit", async (e) => {
   }
 
   try {
-    // Este paso requiere backend seguro con service_role. Simulado por ahora.
-    // const { data: signUpData, error: authError } = await supabase.auth.admin.createUser({ ... });
-
-    // Agregar a userlist
+    // Este paso requiere una función segura en el backend. Aquí se omite la creación Auth.
     const { error: insertError } = await supabase.from("userlist").insert([{ email, role_id }]);
     if (insertError) throw insertError;
 
     alert("Usuario creado exitosamente.");
-    form.reset();
+    e.target.reset();
     await loadUsers();
   } catch (err) {
     console.error("Error creando usuario:", err);
     alert(`No se pudo crear el usuario: ${err?.message || err}`);
   }
 });
+
+async function main() {
+  await verifyAdminAccess();
+  await loadRoles();
+  await loadUsers();
+}
+
+main();

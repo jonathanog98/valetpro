@@ -4,51 +4,68 @@ import { supabase } from './supabase.js';
 document.addEventListener('DOMContentLoaded', async () => {
   const $ = (id) => document.getElementById(id);
 
-  setTimeout(() => {
-    $('vin')?.addEventListener('blur', () => {
-      handleVinBlur();
-    });
-  }, 0);
-
-  $('pickup-form')?.addEventListener('submit', async (e) => {
+  document.getElementById('pickup-form')?.addEventListener('submit', async (e) => {
     e.preventDefault();
-
-    const proposito = $('proposito')?.value;
-    const vin = $('vin')?.value || null;
-    const tag = $('tag')?.value;
-    const modelo = $('modelo')?.value;
-    const color = $('color')?.value;
-    const asesor = $('asesor')?.value;
-    const descripcion = $('descripcion')?.value;
     const { data: { user } } = await supabase.auth.getUser();
+    const proposito = $('proposito')?.value;
 
-    const data = {
-      tag,
-      modelo,
-      color,
-      asesor,
-      descripcion,
-      user_id: user.id,
-      hora: new Date().toISOString()
-    };
+    const horaActual = new Date().toISOString();
 
-    let tablaDestino = null;
+    let data = { user_id: user.id, hora: horaActual };
+    let tablaDestino = '';
 
     switch (proposito) {
       case 'Recogiendo':
         tablaDestino = 'recogiendo';
+        data = {
+          tag: $('tag')?.value,
+          modelo: $('modelo')?.value,
+          color: $('color')?.value,
+          asesor: $('asesor')?.value,
+          descripcion: $('descripcion')?.value,
+          user_id: user.id,
+          hora: horaActual
+        };
         break;
+
       case 'Waiter':
         tablaDestino = 'en_sala';
+        data = {
+          tag: $('tag')?.value,
+          modelo: $('modelo')?.value,
+          color: $('color')?.value,
+          asesor: $('asesor')?.value,
+          descripcion: $('descripcion')?.value,
+          user_id: user.id,
+          hora: horaActual
+        };
         break;
+
       case 'Loaner':
         tablaDestino = 'loaners';
+        data = {
+          nombre: $('nombre')?.value,
+          hora_cita: $('hora_cita')?.value,
+          user_id: user.id,
+          hora: horaActual
+        };
         break;
+
       case 'Transportación':
         tablaDestino = 'transportaciones';
+        data = {
+          nombre: $('nombre')?.value,
+          telefono: $('telefono')?.value,
+          direccion: $('direccion')?.value,
+          personas: parseInt($('personas')?.value, 10) || 0,
+          descripcion: $('descripcion')?.value,
+          user_id: user.id,
+          hora: horaActual
+        };
         break;
+
       default:
-        alert('Propósito no válido.');
+        console.warn('Propósito inválido');
         return;
     }
 
@@ -56,42 +73,42 @@ document.addEventListener('DOMContentLoaded', async () => {
     const { error } = await supabase.from(tablaDestino).insert([data]);
 
     if (error) {
-      console.error('Supabase insert error:', error);
-      console.warn('Error al agregar pickup:', error.message);
+      console.warn('Error al insertar:', error.message);
     } else {
-      console.log('Pickup agregado con éxito.');
+      console.log('Pickup agregado con éxito');
       location.reload();
     }
   });
 
+  window.handleVinBlur = async function () {
+    const vinInput = document.getElementById('vin');
+    if (!vinInput) return;
+    const vin = vinInput.value;
+    if (vin?.length !== 17) return;
+
+    try {
+      const response = await fetch(`https://vpic.nhtsa.dot.gov/api/vehicles/decodevinvalues/${vin}?format=json`);
+      const data = await response.json();
+      const modelo = data?.Results?.[0]?.Model || 'ModeloDesconocido';
+      const modeloInput = document.getElementById('modelo');
+      if (modeloInput) modeloInput.value = modelo;
+    } catch (err) {
+      console.error('Error al decodificar VIN:', err);
+    }
+  };
+
+  // Cargar datos a tableros
   loadRecogiendo();
   loadEnSala();
   loadLoaners();
   loadTransportacion();
-
-  async function handleVinBlur() {
-    const vin = $('vin')?.value;
-    if (vin?.length === 17) {
-      $('modelo').value = await decodeVIN(vin);
-    }
-  }
-
-  async function decodeVIN(vin) {
-    if (!vin) return '';
-    try {
-      const response = await fetch(`https://vpic.nhtsa.dot.gov/api/vehicles/decodevinvalues/${vin}?format=json`);
-      const data = await response.json();
-      return data?.Results?.[0]?.Model || 'ModeloDesconocido';
-    } catch (error) {
-      console.error('Error al decodificar el VIN:', error);
-      return 'ModeloDesconocido';
-    }
-  }
 });
+
+// Funciones para cargar tableros (sin cambios mayores)
 
 async function loadRecogiendo() {
   const { data, error } = await supabase.from('recogiendo').select('*').order('hora', { ascending: false });
-  if (error) return console.error('Supabase insert error:', error);
+  if (error) return console.error(error);
   const tbody = document.querySelector('#tabla-recogiendo tbody');
   tbody.innerHTML = '';
   data.forEach(row => {
@@ -112,7 +129,7 @@ async function loadRecogiendo() {
 
 async function loadEnSala() {
   const { data, error } = await supabase.from('en_sala').select('*').order('hora', { ascending: false });
-  if (error) return console.error('Supabase insert error:', error);
+  if (error) return console.error(error);
   const tbody = document.querySelector('#tabla-waiter tbody');
   tbody.innerHTML = '';
   data.forEach(row => {
@@ -132,7 +149,7 @@ async function loadEnSala() {
 
 async function loadLoaners() {
   const { data, error } = await supabase.from('loaners').select('*').order('hora', { ascending: false });
-  if (error) return console.error('Supabase insert error:', error);
+  if (error) return console.error(error);
   const tbody = document.querySelector('#tabla-loaner tbody');
   tbody.innerHTML = '';
   data.forEach(row => {
@@ -147,7 +164,7 @@ async function loadLoaners() {
 
 async function loadTransportacion() {
   const { data, error } = await supabase.from('transportaciones').select('*').order('hora', { ascending: false });
-  if (error) return console.error('Supabase insert error:', error);
+  if (error) return console.error(error);
   const tbody = document.querySelector('#tabla-transporte tbody');
   tbody.innerHTML = '';
   data.forEach(row => {

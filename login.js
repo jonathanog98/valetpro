@@ -1,15 +1,9 @@
+
 import { supabase } from './supabase.js';
-// login.js
-// Supabase config
+
 const form = document.getElementById("login-form");
 const btn = document.getElementById("login-btn");
 const err = document.getElementById("error-msg");
-
-  if (err) {
-    err.style.display = "block";
-  } else {
-  }
-}
 
 form?.addEventListener("submit", async (e) => {
   e.preventDefault();
@@ -53,6 +47,13 @@ form?.addEventListener("submit", async (e) => {
 
   window.location.href = "index.html";
 });
+
+function showError(msg) {
+  if (err) {
+    err.textContent = msg;
+    err.style.display = "block";
+  }
+}
 
 ["email", "password"].forEach((id) =>
   document.getElementById(id)?.addEventListener("input", () => {

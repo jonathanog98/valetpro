@@ -297,7 +297,7 @@ tr.blink-red    { animation: blinkRed 1s linear infinite; }
             (async () => {
               try {
                 const insertPayload = {
-                  hora: row.hora || horaActual12h(),
+                  hora: horaActual12h(),
                   tag: row.tag,
                   modelo: row.modelo,
                   color: row.color,
@@ -368,7 +368,7 @@ tr.blink-red    { animation: blinkRed 1s linear infinite; }
               if (String(val).toLowerCase() === "falta book") {
                 try {
                   const insertPayload = {
-                    hora: row.hora || horaActual12h(),
+                    hora: horaActual12h(),
                     tag: row.tag,
                     modelo: row.modelo,
                     color: row.color,

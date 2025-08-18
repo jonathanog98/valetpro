@@ -1,10 +1,12 @@
 
-// script.js
+// script.js (inserción de pickups + sessionStorage + VIN + permisos + mover en_sala→recogiendo)
+
+import { supabase } from './supabase.js';
 
 document.addEventListener("DOMContentLoaded", async function () {
   // ====== SESIÓN (sessionStorage) ======
-  const userRole = sessionStorage.getItem("userRole") || "Guest";
-  const userEmail = sessionStorage.getItem("userEmail") || "";
+  const userRole = sessionStorage.getItem("rol") || "Guest";
+  const userEmail = sessionStorage.getItem("usuario") || "";
 
   // ====== LISTAS DE STATUS ======
   const cajeroStatuses = [
@@ -42,6 +44,7 @@ document.addEventListener("DOMContentLoaded", async function () {
       }
     }
   }
+  window.handleVinBlur = handleVinBlur;
 
   // ====== UI HELPERS ======
   function createDropdown(options, selectedValue, onChange, disabled) {
@@ -72,8 +75,8 @@ document.addEventListener("DOMContentLoaded", async function () {
     btn.type = "button";
     btn.textContent = "Eliminar";
     btn.addEventListener("click", async () => {
-      if (!window.supabase) {
-        console.error("Supabase no está disponible en window.supabase");
+      if (!supabase) {
+        console.error("Supabase no está disponible (import falló)");
         return;
       }
       if (confirm("¿Estás seguro de que deseas eliminar este pickup?")) {
@@ -82,54 +85,59 @@ document.addEventListener("DOMContentLoaded", async function () {
           console.error("Error eliminando:", error);
           alert("No se pudo eliminar. Revisa la consola.");
         } else {
-          location.reload();
+          await loadData();
         }
       }
     });
     return btn;
   }
 
+  // ====== HELPERS DE FECHA/HORA ======
+  function horaActual() {
+    try {
+      return new Date().toLocaleTimeString('es-PR', { hour: '2-digit', minute: '2-digit' });
+    } catch {
+      const d = new Date();
+      return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+    }
+  }
+
   // ====== CARGA DE TABLAS DESDE SUPABASE ======
   async function loadData() {
-    if (!window.supabase) {
-      console.error("Supabase no está disponible en window.supabase");
-      return;
-    }
-
     const roles = {
       admin: userRole === "Admin",
       cajero: userRole === "Cajero",
       jockey: userRole === "Jockey",
-      transporte: userRole === "Transportacion"
+      transporte: userRole === "Transportacion" || userRole === "Transportación"
     };
 
     const pickups = [
       {
-        table: "recogiendo",
-        elementId: "recogiendo-table",
-        fields: ["hora", "tag", "modelo", "color", "asesor", "descripcion", "status_cajero", "status_jockey"]
-      },
-      {
         table: "en_sala",
-        elementId: "en-sala-table",
+        elementId: "tabla-waiter",
         fields: ["hora", "tag", "modelo", "color", "asesor", "descripcion", "status", "promise_time"]
       },
       {
-        table: "transportaciones",
-        elementId: "transportaciones-table",
-        fields: ["hora", "nombre", "telefono", "direccion", "personas", "asignado"]
+        table: "recogiendo",
+        elementId: "tabla-recogiendo",
+        fields: ["hora", "tag", "modelo", "color", "asesor", "descripcion", "status_cajero", "status_jockey"]
       },
       {
         table: "loaners",
-        elementId: "loaners-table",
+        elementId: "tabla-loaner",
         fields: ["hora", "nombre_cliente"]
+      },
+      {
+        table: "transportaciones",
+        elementId: "tabla-transporte",
+        fields: ["hora", "nombre", "telefono", "direccion", "personas", "asignado"]
       }
     ];
 
     for (let { table, elementId, fields } of pickups) {
-      const tbody = document.getElementById(elementId);
-      if (!tbody) continue;
-
+      const tableEl = document.getElementById(elementId);
+      if (!tableEl) continue;
+      const tbody = tableEl.querySelector("tbody") || tableEl;
       const { data, error } = await supabase
         .from(table)
         .select("*")
@@ -173,8 +181,35 @@ document.addEventListener("DOMContentLoaded", async function () {
               enSalaStatuses,
               row[field],
               async (val) => {
+                // 1) Actualizar el status en en_sala
                 const { error } = await supabase.from(table).update({ status: val }).eq("id", row.id);
-                if (error) console.error("Error actualizando status (en_sala):", error);
+                if (error) {
+                  console.error("Error actualizando status (en_sala):", error);
+                  return;
+                }
+                // 2) Si es "Falta book" (case-insensitive), mover a 'recogiendo' con status_cajero = "Falta book"
+                if (String(val).toLowerCase() === "falta book") {
+                  try {
+                    const insertPayload = {
+                      hora: row.hora,
+                      tag: row.tag,
+                      modelo: row.modelo,
+                      color: row.color,
+                      asesor: row.asesor,
+                      descripcion: row.descripcion,
+                      status_cajero: "Falta book"
+                    };
+                    const { error: insertError } = await supabase.from("recogiendo").insert([insertPayload]);
+                    if (insertError) throw insertError;
+
+                    const { error: deleteError } = await supabase.from("en_sala").delete().eq("id", row.id);
+                    if (deleteError) throw deleteError;
+
+                    await loadData();
+                  } catch (e) {
+                    console.error("Error moviendo registro a Recogiendo:", e);
+                  }
+                }
               },
               false
             ));
@@ -203,11 +238,15 @@ document.addEventListener("DOMContentLoaded", async function () {
           tr.appendChild(td);
         });
 
-        const actionTd = document.createElement("td");
-        if (roles.admin || roles.cajero) {
+        const addDelete =
+          (userRole === "Admin" || userRole === "Cajero") &&
+          (table === "recogiendo" || table === "loaners" || table === "transportaciones");
+
+        if (addDelete) {
+          const actionTd = document.createElement("td");
           actionTd.appendChild(createDeleteButton(row.id, table));
+          tr.appendChild(actionTd);
         }
-        tr.appendChild(actionTd);
 
         tbody.appendChild(tr);
       }
@@ -216,10 +255,67 @@ document.addEventListener("DOMContentLoaded", async function () {
 
   await loadData();
 
+  // ====== INSERTAR NUEVOS PICKUPS (FORMULARIO) ======
+  const form = document.getElementById("pickup-form");
+  form?.addEventListener("submit", async (e) => {
+    e.preventDefault();
+
+    const proposito = document.getElementById("proposito")?.value;
+    if (!proposito) return;
+
+    // Campos comunes
+    const hora = horaActual();
+    const tag = document.getElementById("tag")?.value?.trim() || null;
+    const modelo = document.getElementById("modelo")?.value?.trim() || null;
+    const color = document.getElementById("color")?.value?.trim() || null;
+    const asesor = document.getElementById("asesor")?.value?.trim() || null;
+    const descripcion = document.getElementById("descripcion")?.value?.trim() || null;
+
+    try {
+      if (proposito === "Recogiendo") {
+        const payload = { hora, tag, modelo, color, asesor, descripcion };
+        const { error } = await supabase.from("recogiendo").insert([payload]);
+        if (error) throw error;
+      } else if (proposito === "Waiter") {
+        const payload = { hora, tag, modelo, color, asesor, descripcion, status: "Working" };
+        const { error } = await supabase.from("en_sala").insert([payload]);
+        if (error) throw error;
+      } else if (proposito === "Loaner") {
+        const nombre = document.getElementById("nombre")?.value?.trim() || null;
+        const hora_cita = document.getElementById("hora_cita")?.value || null;
+        const payload = { hora: hora_cita || hora, nombre_cliente: nombre };
+        const { error } = await supabase.from("loaners").insert([payload]);
+        if (error) throw error;
+      } else if (proposito === "Transportación") {
+        const nombre = document.getElementById("nombre")?.value?.trim() || null;
+        const telefono = document.getElementById("telefono")?.value?.trim() || null;
+        const direccion = document.getElementById("direccion")?.value?.trim() || null;
+        const personasVal = document.getElementById("personas")?.value;
+        const personas = personasVal ? Number(personasVal) : null;
+        const payload = { hora, nombre, telefono, direccion, personas, asignado: "" };
+        const { error } = await supabase.from("transportaciones").insert([payload]);
+        if (error) throw error;
+      }
+
+      // Limpiar y recargar
+      form.reset();
+      document.getElementById("proposito").value = "Recogiendo";
+      const evt = new Event("change");
+      document.getElementById("proposito").dispatchEvent(evt);
+
+      await loadData();
+      alert("Pickup creado correctamente.");
+    } catch (err) {
+      console.error("Error insertando pickup:", err);
+      alert("No se pudo crear el pickup. Revisa la consola para más detalles.");
+    }
+  });
+
+  // VIN blur (por si el formulario de crear pickup está presente)
   const vinInput = document.getElementById("vin");
   if (vinInput) {
     vinInput.addEventListener("blur", handleVinBlur);
   }
 
-  console.log(`[APP] Sesión activa con sessionStorage. userEmail="\${userEmail}", userRole="\${userRole}"`);
+  console.log(`[APP] sessionStorage activo. usuario="${userEmail}", rol="${userRole}"`);
 });

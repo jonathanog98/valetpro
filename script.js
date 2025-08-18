@@ -1,3 +1,30 @@
+// Adds inline editing to tablero rows based on user role
+const role = sessionStorage.getItem('rol');
+
+async function updateRecogiendoStatus(id, field, value) {
+  const { error } = await supabase
+    .from('recogiendo')
+    .update({ [field]: value })
+    .eq('id', id);
+  if (error) {
+    console.error('Error actualizando recogiendo:', error.message);
+  } else {
+    console.log(`Actualizado ${field} a ${value} para ID ${id}`);
+  }
+}
+
+async function updateTransportacionAsignado(id, value) {
+  const { error } = await supabase
+    .from('transportaciones')
+    .update({ asignado: value })
+    .eq('id', id);
+  if (error) {
+    console.error('Error actualizando asignado:', error.message);
+  } else {
+    console.log(`Asignado actualizado para transporte ID ${id}`);
+  }
+}
+
 
 import { supabase } from './supabase.js';
 
@@ -106,7 +133,40 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 // Funciones para cargar tableros (sin cambios mayores)
 
-async function loadRecogiendo() {
+const { data, error } = await supabase.from('recogiendo').select('*').order('hora', { ascending: false });
+  if (error) return console.error(error);
+  const tbody = document.querySelector('#tabla-recogiendo tbody');
+  tbody.innerHTML = '';
+  data.forEach(row => {
+    const tr = document.createElement('tr');
+    const statusCajero = role === 'Cajero' || role === 'Admin' ? `
+      <select onchange="updateRecogiendoStatus('${row.id}', 'status_cajero', this.value)">
+        <option value="">—</option>
+        <option value="Pendiente" ${row.status_cajero === 'Pendiente' ? 'selected' : ''}>Pendiente</option>
+        <option value="Entregado" ${row.status_cajero === 'Entregado' ? 'selected' : ''}>Entregado</option>
+      </select>` : row.status_cajero || '—';
+
+    const statusJockey = role === 'Jockey' || role === 'Admin' ? `
+      <select onchange="updateRecogiendoStatus('${row.id}', 'status_jockey', this.value)">
+        <option value="">—</option>
+        <option value="Esperando" ${row.status_jockey === 'Esperando' ? 'selected' : ''}>Esperando</option>
+        <option value="En camino" ${row.status_jockey === 'En camino' ? 'selected' : ''}>En camino</option>
+        <option value="Entregado" ${row.status_jockey === 'Entregado' ? 'selected' : ''}>Entregado</option>
+      </select>` : row.status_jockey || '—';
+
+    tr.innerHTML = `
+      <td>${formatHora(row.hora)}</td>
+      <td>${row.tag || ''}</td>
+      <td>${row.modelo || ''}</td>
+      <td>${row.color || ''}</td>
+      <td>${row.asesor || ''}</td>
+      <td>${row.descripcion || ''}</td>
+      <td>${statusCajero}</td>
+      <td>${statusJockey}</td>
+      <td>—</td>`;
+    tbody.appendChild(tr);
+  });
+}
   const { data, error } = await supabase.from('recogiendo').select('*').order('hora', { ascending: false });
   if (error) return console.error(error);
   const tbody = document.querySelector('#tabla-recogiendo tbody');
@@ -163,6 +223,27 @@ async function loadLoaners() {
 }
 
 async function loadTransportacion() {
+const { data, error } = await supabase.from('transportaciones').select('*').order('hora', { ascending: false });
+  if (error) return console.error(error);
+  const tbody = document.querySelector('#tabla-transporte tbody');
+  tbody.innerHTML = '';
+  data.forEach(row => {
+    const asignadoEditable = role === 'Transportación' || role === 'Admin' ? `
+      <input type="text" value="${row.asignado || ''}" onchange="updateTransportacionAsignado('${row.id}', this.value)" />
+    ` : (row.asignado || '—');
+
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${formatHora(row.hora)}</td>
+      <td>${row.nombre || ''}</td>
+      <td>${row.telefono || ''}</td>
+      <td>${row.direccion || ''}</td>
+      <td>${row.personas || ''}</td>
+      <td>${asignadoEditable}</td>
+      <td>—</td>`;
+    tbody.appendChild(tr);
+  });
+}
   const { data, error } = await supabase.from('transportaciones').select('*').order('hora', { ascending: false });
   if (error) return console.error(error);
   const tbody = document.querySelector('#tabla-transporte tbody');

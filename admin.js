@@ -1,15 +1,18 @@
 import { supabase } from './supabase.js';
 
+const ROLES = ['Admin', 'Cajero', 'Jockey', 'Transportación', 'Loaners'];
+
 async function verifyAdminAccess() {
   const { data: { session } } = await supabase.auth.getSession();
   if (!session) return redirect();
 
-  const { data: roleData, error } = await supabase
-    .from('current_user_roles')
-    .select('role_code')
+  const { data: user, error } = await supabase
+    .from('users')
+    .select('role')
+    .eq('id', session.user.id)
     .single();
 
-  if (error || roleData?.role_code !== 'Admin') return redirect();
+  if (error || user?.role !== 'Admin') return redirect();
 }
 
 function redirect() {
@@ -20,7 +23,7 @@ function redirect() {
 }
 
 async function loadUsers() {
-  const { data, error } = await supabase.from('userlist').select('email, roles(name)').order('email');
+  const { data, error } = await supabase.from('users').select('email, role').order('email');
   const table = document.getElementById('table');
   table.innerHTML = '';
 
@@ -34,7 +37,7 @@ async function loadUsers() {
     const row = document.createElement('tr');
     row.innerHTML = `
       <td>${user.email}</td>
-      <td>${user.roles?.name || 'Sin rol'}</td>
+      <td>${user.role}</td>
     `;
     table.appendChild(row);
   }
@@ -42,16 +45,10 @@ async function loadUsers() {
 
 async function loadRoles() {
   const select = document.getElementById("new-role");
-  const { data: roles, error } = await supabase.from("roles").select("*").order("id", { ascending: true });
-  if (error) {
-    console.error("Error cargando roles:", error);
-    alert("No se pudieron cargar los roles.");
-    return;
-  }
-  for (const role of roles) {
+  for (const role of ROLES) {
     const opt = document.createElement("option");
-    opt.value = role.id;
-    opt.textContent = role.name;
+    opt.value = role;
+    opt.textContent = role;
     select.appendChild(opt);
   }
 }
@@ -60,16 +57,26 @@ document.getElementById("create-user-form")?.addEventListener("submit", async (e
   e.preventDefault();
   const email = document.getElementById("new-email")?.value?.trim();
   const password = document.getElementById("new-pass")?.value;
-  const role_id = parseInt(document.getElementById("new-role")?.value);
+  const role = document.getElementById("new-role")?.value;
 
-  if (!email || !password || !role_id) {
+  if (!email || !password || !role) {
     alert("Por favor completa todos los campos.");
     return;
   }
 
   try {
-    // Este paso requiere una función segura en el backend. Aquí se omite la creación Auth.
-    const { error: insertError } = await supabase.from("userlist").insert([{ email, role_id }]);
+    const { data: signUpData, error: signUpError } = await supabase.auth.admin.createUser({
+      email,
+      password,
+    });
+
+    if (signUpError) throw signUpError;
+
+    const user_id = signUpData.user.id;
+
+    const { error: insertError } = await supabase.from("users").insert([
+      { id: user_id, email, full_name: email, role }
+    ]);
     if (insertError) throw insertError;
 
     alert("Usuario creado exitosamente.");

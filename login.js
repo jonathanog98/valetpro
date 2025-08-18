@@ -1,62 +1,53 @@
 
-import { supabase } from './supabase.js';
+const supabase = supabase.createClient("https://vkrphvjhlnogvvdmhjnn.supabase.co", "public-anon-key");
 
-const form = document.getElementById("login-form");
-const btn = document.getElementById("login-btn");
-const err = document.getElementById("error-msg");
-
-form?.addEventListener("submit", async (e) => {
+document.getElementById("login-form").addEventListener("submit", async function (e) {
   e.preventDefault();
-  err.style.display = "none";
-  btn.disabled = true;
-  btn.textContent = "Ingresando…";
 
-  const email = document.getElementById("email").value.trim().toLowerCase();
+  const email = document.getElementById("email").value;
   const password = document.getElementById("password").value;
+  const btn = document.getElementById("login-btn");
 
-  if (!email || !password) {
-    showError("Correo y contraseña son obligatorios.");
+  btn.disabled = true;
+  btn.textContent = "Ingresando...";
+
+  const { error: loginError } = await supabase.auth.signInWithPassword({ email, password });
+
+  if (loginError) {
+    showError("Credenciales incorrectas.");
     btn.disabled = false;
     btn.textContent = "Ingresar";
     return;
   }
 
-  const { error, data } = await supabase.auth.signInWithPassword({ email, password });
-
-  if (error) {
-    showError("Correo o contraseña incorrectos.");
-    btn.disabled = false;
-    btn.textContent = "Ingresar";
-    return;
-  }
-
-  const { data: roleData, error: roleError } = await supabase
-    .from("current_user_roles")
-    .select("role_code")
+  const { data: userData, error: userError } = await supabase
+    .from("users")
+    .select("role")
+    .eq("email", email)
     .single();
 
-  if (roleError || !roleData?.role_code) {
+  if (userError || !userData?.role) {
     showError("No se pudo obtener el rol del usuario.");
     btn.disabled = false;
     btn.textContent = "Ingresar";
     return;
   }
 
-  sessionStorage.setItem("rol", roleData.role_code);
-  sessionStorage.setItem("usuario", email);
+  sessionStorage.setItem("rol", userData.role);
 
-  window.location.href = "index.html";
+  if (userData.role === "Admin") {
+    window.location.href = "admin.html";
+  } else if (userData.role === "Cajero") {
+    window.location.href = "index.html";
+  } else {
+    showError("Rol no autorizado.");
+    btn.disabled = false;
+    btn.textContent = "Ingresar";
+  }
 });
 
-function showError(msg) {
-  if (err) {
-    err.textContent = msg;
-    err.style.display = "block";
-  }
+function showError(message) {
+  const errorDiv = document.getElementById("error-message");
+  errorDiv.textContent = message;
+  errorDiv.style.display = "block";
 }
-
-["email", "password"].forEach((id) =>
-  document.getElementById(id)?.addEventListener("input", () => {
-    err.style.display = "none";
-  })
-);

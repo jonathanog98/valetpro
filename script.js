@@ -23,7 +23,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     const user = sessionStorage.getItem('usuario');
 
     const data = {
-      vin,
       tag,
       modelo,
       color,

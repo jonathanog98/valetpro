@@ -3,206 +3,81 @@ import { supabase } from './supabase.js';
 
 const $ = (id) => document.getElementById(id);
 
-// DOM elements
-const form = $('pickup-form');
-const roleLabel = $('rol-label');
-const userInfo = $('user-info');
-const adminBtn = $('admin-btn');
-const resultCount = $('result-count');
-const propositoInput = $('proposito');
-const extraFields = $('extra-fields');
+const userInfo = $("user-info");
+const roleLabel = $("rol-label");
+const adminBtn = $("admin-btn");
+const logoutBtn = $("logout-btn");
 
-const sections = {
-  Recogiendo: $('recogiendo-cards'),
-  Loaner: $('loaner-cards'),
-  Sala: $('sala-cards'),
-  Transportacion: $('transportacion-cards'),
-};
+// Mostrar nombre y rol
+const rol = sessionStorage.getItem("rol");
+const usuario = sessionStorage.getItem("usuario");
 
-let currentUser = null;
+if (userInfo) userInfo.textContent = usuario || "";
+if (roleLabel) roleLabel.textContent = rol || "";
 
-// VIN decoding (placeholder)
-async function decodeVIN(vin) {
-  if (!vin || vin.length !== 17) return '';
-  try {
-    const res = await fetch(`https://vpic.nhtsa.dot.gov/api/vehicles/DecodeVin/${vin}?format=json`);
-    const data = await res.json();
-    const modelEntry = data.Results.find(item => item.Variable === 'Model');
-    return modelEntry ? modelEntry.Value || '' : '';
-  } catch (e) {
-    console.error('VIN decoding error:', e);
-    return '';
-  }
+// Botón de administración solo visible para Admin
+if (rol === "Admin" && adminBtn) {
+  adminBtn.style.display = "inline-block";
+  adminBtn.onclick = () => location.href = "admin.html";
 }
 
-// Update extra fields based on propósito
-function updateExtraFields(purpose) {
-  if (!extraFields) return;
-  extraFields.innerHTML = '';
-
-  if (purpose === 'Recogiendo' || purpose === 'Waiter') {
-    extraFields.innerHTML = `
-      <label>VIN (opcional)
-        <input type="text" id="vin" maxlength="17"/>
-      </label>
-      <label>TAG
-        <input type="text" id="tag"/>
-      </label>
-      <label>Modelo
-        <input type="text" id="modelo"/>
-      </label>
-      <label>Color
-        <input type="text" id="color"/>
-      </label>
-      <label>Asesor
-        <input type="text" id="asesor"/>
-      </label>
-      <label>Descripcion
-        <input type="text" id="descripcion"/>
-      </label>
-    `;
-
-    setTimeout(() => {
-      $('vin')?.addEventListener('blur', async () => {
-        const vin = $('vin')?.value;
-        if (vin?.length === 17) {
-          $('modelo').value = await decodeVIN(vin);
-        }
-      });
-    }, 0);
-
-  } else if (purpose === 'Loaner') {
-    extraFields.innerHTML = `
-      <label>Nombre
-        <input type="text" id="nombre"/>
-      </label>
-      <label>Hora de la Cita
-        <input type="time" id="hora"/>
-      </label>
-    `;
-  } else if (purpose === 'Transportacion') {
-    extraFields.innerHTML = `
-      <label>Nombre
-        <input type="text" id="nombre"/>
-      </label>
-      <label>Teléfono
-        <input type="tel" id="telefono"/>
-      </label>
-      <label>Direccion
-        <input type="text" id="direccion"/>
-      </label>
-      <label>Cantidad de Pasajeros
-        <input type="number" id="pasajeros" min="1"/>
-      </label>
-    `;
-  }
+// Cerrar sesión
+if (logoutBtn) {
+  logoutBtn.onclick = async () => {
+    await supabase.auth.signOut();
+    sessionStorage.clear();
+    location.href = "login.html";
+  };
 }
 
-// Create a pickup card element
-function createCard(pickup) {
-  const div = document.createElement('div');
-  div.className = 'card';
-  div.innerHTML = `
-    <h4>${pickup.proposito}</h4>
-    <p><strong>TAG:</strong> ${pickup.tag || pickup.nombre || '—'}</p>
-    <p><strong>Modelo:</strong> ${pickup.modelo || '—'}</p>
-    <p><strong>Color:</strong> ${pickup.color || '—'}</p>
-    <p><strong>Asesor:</strong> ${pickup.asesor || '—'}</p>
-    <p><strong>Descripción:</strong> ${pickup.descripcion || '—'}</p>
-  `;
-  return div;
-}
+// Cargar datos a tableros
+async function cargarTableros() {
+  if (!["Admin", "Cajero"].includes(rol)) return;
 
-// Load pickups
-async function load(userId) {
   const { data, error } = await supabase
-    .from('pickups')
-    .select('*')
-    .eq('user_id', userId)
-    .order('created_at', { ascending: false });
+    .from("pickups")
+    .select("*")
+    .order("created_at", { ascending: false });
 
   if (error) {
-    console.error('Load error:', error);
-    alert('Error al cargar pickups');
+    console.error("Error al cargar pickups:", error);
     return;
   }
 
-  Object.values(sections).forEach((section) => (section.innerHTML = ''));
-  resultCount.textContent = `${data.length} resultados`;
+  const tbodyById = (id) => document.querySelector(`#${id} tbody`);
 
-  data.forEach((pickup) => {
-    let section;
-    if (pickup.proposito === 'Waiter') section = sections.Sala;
-    else section = sections[pickup.proposito] || sections.Sala;
-    section.appendChild(createCard(pickup));
+  const waiter = tbodyById("tabla-waiter");
+  const recogiendo = tbodyById("tabla-recogiendo");
+  const loaner = tbodyById("tabla-loaner");
+  const transporte = tbodyById("tabla-transporte");
+
+  waiter.innerHTML = "";
+  recogiendo.innerHTML = "";
+  loaner.innerHTML = "";
+  transporte.innerHTML = "";
+
+  data.forEach((p) => {
+    if (p.proposito === "Sala" && waiter) {
+      waiter.innerHTML += `
+        <tr><td>${p.hora}</td><td>${p.tag || ""}</td><td>${p.modelo || ""}</td>
+        <td>${p.color || ""}</td><td>${p.asesor || ""}</td><td>${p.descripcion || ""}</td>
+        <td>${p.status || ""}</td><td>${p.promise_time || ""}</td></tr>`;
+    } else if (p.proposito === "Recogiendo" && recogiendo) {
+      recogiendo.innerHTML += `
+        <tr><td>${p.hora}</td><td>${p.tag || ""}</td><td>${p.modelo || ""}</td><td>${p.color || ""}</td>
+        <td>${p.asesor || ""}</td><td>${p.descripcion || ""}</td>
+        <td>${p.status_cajero || ""}</td><td>${p.status_jockey || ""}</td>
+        <td><button>Editar</button></td></tr>`;
+    } else if (p.proposito === "Loaner" && loaner) {
+      loaner.innerHTML += `
+        <tr><td>${p.hora}</td><td>${p.nombre || ""}</td><td><button>Ver</button></td></tr>`;
+    } else if (p.proposito === "Transportación" && transporte) {
+      transporte.innerHTML += `
+        <tr><td>${p.hora}</td><td>${p.nombre || ""}</td><td>${p.telefono || ""}</td>
+        <td>${p.direccion || ""}</td><td>${p.pasajeros || ""}</td>
+        <td>${p.asignado || ""}</td><td><button>Ver</button></td></tr>`;
+    }
   });
 }
 
-// Submit form
-form?.addEventListener('submit', async (e) => {
-  e.preventDefault();
-
-  const proposito = propositoInput.value;
-
-  const payload = {
-    user_id: currentUser.id,
-    proposito,
-  };
-
-  if (proposito === 'Recogiendo' || proposito === 'Waiter') {
-    payload.vin = $('vin')?.value || '';
-    payload.tag = $('tag')?.value || '';
-    payload.modelo = $('modelo')?.value || '';
-    payload.color = $('color')?.value || '';
-    payload.asesor = $('asesor')?.value || '';
-    payload.descripcion = $('descripcion')?.value || '';
-  } else if (proposito === 'Loaner') {
-    payload.nombre = $('nombre')?.value || '';
-    payload.descripcion = $('descripcion')?.value || '';
-    payload.hora = $('hora')?.value || '';
-
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({ nombre: payload.nombre, hora: payload.hora })
-});
-
-  } else if (proposito === 'Transportación') {
-    payload.nombre = $('nombre')?.value || '';
-    payload.telefono = $('telefono')?.value || '';
-    payload.direccion = $('direccion')?.value || '';
-    payload.descripcion = $('descripcion')?.value || '';
-    payload.pasajeros = parseInt($('pasajeros')?.value || '0', 10);
-  }
-
-  const { error } = await supabase.from('pickups').insert([payload]);
-
-  if (error) {
-    console.error('Insert error:', error);
-    alert('Error al guardar pickup');
-  } else {
-    form.reset();
-    updateExtraFields(propositoInput.value);
-    await load(currentUser.id);
-  }
-});
-
-// Init
-document.addEventListener('DOMContentLoaded', async () => {
-  const { data: { user }, error } = await supabase.auth.getUser();
-  if (error || !user) return (window.location.href = 'login.html');
-
-  const { data: roleData } = await supabase
-    .from('current_user_roles')
-    .select('role_code')
-    .maybeSingle();
-
-  currentUser = user;
-  userInfo.textContent = user.email;
-  roleLabel.textContent = roleData?.role_code || 'User';
-  adminBtn.style.display = roleData?.role_code === 'Admin' ? 'inline-block' : 'none';
-
-  updateExtraFields(propositoInput.value);
-  propositoInput?.addEventListener('change', () => updateExtraFields(propositoInput.value));
-
-  await load(currentUser.id);
-});
+cargarTableros();

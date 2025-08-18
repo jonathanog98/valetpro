@@ -1,12 +1,12 @@
 <!DOCTYPE html>
+
 <html lang="es">
 <head>
-  <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>ValetPro</title>
-  <link rel="stylesheet" href="style.css"/>
-
-  <script type="module">
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>ValetPro</title>
+<link href="style.css" rel="stylesheet"/>
+<script type="module">
     const role = sessionStorage.getItem("rol");
     const user = sessionStorage.getItem("usuario");
 
@@ -22,149 +22,190 @@
       }
     }
   </script>
-
 </head>
 <body>
-  <!-- Navbar -->
-  <nav class="topbar">
-    <div class="brand">ValetPro</div>
-    <ul class="nav-links">
-      <li><a href="#" class="active">Inicio</a></li>
-    </ul>
-    <div class="userbox">
-      <span id="rol-label" class="role-pill">—</span>
-      <span id="user-info" class="muted"></span>
-      <button id="admin-btn" type="button" style="display:none;" onclick="location.href='admin.html'">Administración</button>
-      <button id="logout-btn" type="button">Salir</button>
-    </div>
-  </nav>
-
-  <!-- Layout -->
-  <div class="layout">
-    <!-- Sidebar: only Crear Pickup -->
-    <aside class="sidebar">
-      <div class="panel">
-        <h3>Crear Pickup</h3>
-        <form id="pickup-form" class="create-form">
-          <label>Propósito
-            <select id="proposito" required>
-              <option value="Recogiendo" selected>Recogiendo</option>
-              <option value="Waiter">Waiter</option>
-              <option value="Loaner">Loaner</option>
-              <option value="Transportación">Transportación</option>
-            </select>
-          </label>
-          <div id="extra-fields" class="extra">
-            <!-- Extra fields injected dynamically -->
-          </div>
-          <label>VIN (opcional)
-            <input type="text" id="vin" maxlength="17"/>
-          </label>
-          <label>TAG
-            <input type="text" id="tag"/>
-          </label>
-          <label>Modelo
-            <input type="text" id="modelo"/>
-          </label>
-          <label>Color
-            <input type="text" id="color"/>
-          </label>
-          <label>Asesor
-            <input type="text" id="asesor"/>
-          </label>
-          <label>Descripción
-            <input type="text" id="descripcion"/>
-          </label>
-          <button type="submit">Agregar</button>
-        </form>
-      </div>
-    </aside>
-
-    <!-- Main content dashboards -->
-    <main class="content">
-      <div class="content-header">
-        <h2>Pickups</h2>
-        <small class="muted" id="result-count">0 resultados</small>
-      </div>
-
-      <section>
-        <h3>Recogiendo</h3>
-        <div id="recogiendo-cards" class="cards"></div>
-      </section>
-
-      <section>
-        <h3>Loaners</h3>
-        <div id="loaner-cards" class="cards"></div>
-      </section>
-
-      <section>
-        <h3>En Sala</h3>
-        <div id="sala-cards" class="cards"></div>
-      </section>
-
-      <section>
-        <h3>Transportación</h3>
-        <div id="transportacion-cards" class="cards"></div>
-      </section>
-    </main>
-  </div>
-
-  <script type="module" src="script.js"></script>
-
-<div class="table-wrapper">
-  <h2>Clientes en Sala</h2>
-  <table id="tabla-waiter">
-    <thead>
-      <tr>
-        <th>Hora</th>
-        <th>TAG</th>
-        <th>Modelo</th>
-        <th>Color</th>
-        <th>Asesor</th>
-        <th>Descripción</th>
-        <th>Status</th>
-        <th>Promise Time</th>
-      </tr>
-    </thead>
-    <tbody></tbody>
-  </table>
+<!-- Navbar -->
+<nav class="topbar">
+<div class="brand">ValetPro</div>
+<ul class="nav-links">
+<li><a class="active" href="#">Inicio</a></li>
+</ul>
+<div class="userbox">
+<span class="role-pill" id="rol-label">—</span>
+<span class="muted" id="user-info"></span>
+<button id="admin-btn" onclick="location.href='admin.html'" style="display:none;" type="button">Administración</button>
+<button id="logout-btn" type="button">Salir</button>
 </div>
-
-<div class="table-wrapper">
-  <h2>Recogiendo</h2>
-  <table id="tabla-recogiendo">
-    <thead>
-      <tr>
-        <th>Hora</th><th>TAG</th><th>Modelo</th><th>Color</th><th>Asesor</th>
-        <th>Descripción</th><th>Status Cajero</th><th>Status Jockey</th><th>Acciones</th>
-      </tr>
-    </thead>
-    <tbody></tbody>
-  </table>
+</nav>
+<!-- Layout -->
+<div class="layout">
+<!-- Sidebar: only Crear Pickup -->
+<aside class="sidebar">
+<div class="panel">
+<h3>Crear Pickup</h3>
+<form class="create-form" id="pickup-form">
+<label>Propósito
+            <select id="proposito" required="">
+<option selected="" value="Recogiendo">Recogiendo</option>
+<option value="Waiter">Waiter</option>
+<option value="Loaner">Loaner</option>
+<option value="Transportación">Transportación</option>
+</select>
+</label>
+<div class="extra" id="extra-fields">
+<!-- Extra fields injected dynamically -->
 </div>
-
-<div class="table-wrapper">
-  <h2>Loaner</h2>
-  <table id="tabla-loaner">
-    <thead>
-      <tr><th>Hora</th><th>Nombre Cliente</th><th>Acciones</th></tr>
-    </thead>
-    <tbody></tbody>
-  </table>
+<label>VIN (opcional)
+            <input id="vin" maxlength="17" type="text"/>
+</label>
+<label>TAG
+            <input id="tag" type="text"/>
+</label>
+<label>Modelo
+            <input id="modelo" type="text"/>
+</label>
+<label>Color
+            <input id="color" type="text"/>
+</label>
+<label>Asesor
+            <input id="asesor" type="text"/>
+</label>
+<label>Descripción
+            <input id="descripcion" type="text"/>
+</label>
+<button type="submit">Agregar</button>
+</form>
 </div>
-
-<div class="table-wrapper">
-  <h2>Transportación</h2>
-  <table id="tabla-transporte">
-    <thead>
-      <tr>
-        <th>Hora</th><th>Nombre</th><th>Teléfono</th><th>Dirección</th><th>Personas</th>
-        <th>Asignado</th><th>Acciones</th>
-      </tr>
-    </thead>
-    <tbody></tbody>
-  </table>
+</aside>
+<!-- Main content dashboards -->
+<main class="content">
+<div class="content-header">
+<h2>Pickups</h2>
+<small class="muted" id="result-count">0 resultados</small>
 </div>
+<section>
+<h3>Recogiendo</h3>
+<div class="cards" id="recogiendo-cards"></div>
+</section>
+<section>
+<h3>Loaners</h3>
+<div class="cards" id="loaner-cards"></div>
+</section>
+<section>
+<h3>En Sala</h3>
+<div class="cards" id="sala-cards"></div>
+</section>
+<section>
+<h3>Transportación</h3>
+<div class="cards" id="transportacion-cards"></div>
+</section>
 
+<div id="dashboard-tableros" style="margin-top: 40px;">
+<div class="table-wrapper">
+<h2>Clientes en Sala</h2>
+<table id="tabla-waiter">
+<thead>
+<tr>
+<th>Hora</th>
+<th>TAG</th>
+<th>Modelo</th>
+<th>Color</th>
+<th>Asesor</th>
+<th>Descripción</th>
+<th>Status</th>
+<th>Promise Time</th>
+</tr>
+</thead>
+<tbody></tbody>
+</table>
+</div>
+<div class="table-wrapper">
+<h2>Recogiendo</h2>
+<table id="tabla-recogiendo">
+<thead>
+<tr>
+<th>Hora</th><th>TAG</th><th>Modelo</th><th>Color</th><th>Asesor</th>
+<th>Descripción</th><th>Status Cajero</th><th>Status Jockey</th><th>Acciones</th>
+</tr>
+</thead>
+<tbody></tbody>
+</table>
+</div>
+<div class="table-wrapper">
+<h2>Loaner</h2>
+<table id="tabla-loaner">
+<thead>
+<tr><th>Hora</th><th>Nombre Cliente</th><th>Acciones</th></tr>
+</thead>
+<tbody></tbody>
+</table>
+</div>
+<div class="table-wrapper">
+<h2>Transportación</h2>
+<table id="tabla-transporte">
+<thead>
+<tr>
+<th>Hora</th><th>Nombre</th><th>Teléfono</th><th>Dirección</th><th>Personas</th>
+<th>Asignado</th><th>Acciones</th>
+</tr>
+</thead>
+<tbody></tbody>
+</table>
+</div>
+</div>
+</main>
+</div>
+<script src="script.js" type="module"></script>
+<div class="table-wrapper">
+<h2>Clientes en Sala</h2>
+<table id="tabla-waiter">
+<thead>
+<tr>
+<th>Hora</th>
+<th>TAG</th>
+<th>Modelo</th>
+<th>Color</th>
+<th>Asesor</th>
+<th>Descripción</th>
+<th>Status</th>
+<th>Promise Time</th>
+</tr>
+</thead>
+<tbody></tbody>
+</table>
+</div>
+<div class="table-wrapper">
+<h2>Recogiendo</h2>
+<table id="tabla-recogiendo">
+<thead>
+<tr>
+<th>Hora</th><th>TAG</th><th>Modelo</th><th>Color</th><th>Asesor</th>
+<th>Descripción</th><th>Status Cajero</th><th>Status Jockey</th><th>Acciones</th>
+</tr>
+</thead>
+<tbody></tbody>
+</table>
+</div>
+<div class="table-wrapper">
+<h2>Loaner</h2>
+<table id="tabla-loaner">
+<thead>
+<tr><th>Hora</th><th>Nombre Cliente</th><th>Acciones</th></tr>
+</thead>
+<tbody></tbody>
+</table>
+</div>
+<div class="table-wrapper">
+<h2>Transportación</h2>
+<table id="tabla-transporte">
+<thead>
+<tr>
+<th>Hora</th><th>Nombre</th><th>Teléfono</th><th>Dirección</th><th>Personas</th>
+<th>Asignado</th><th>Acciones</th>
+</tr>
+</thead>
+<tbody></tbody>
+</table>
+</div>
 </body>
 </html>

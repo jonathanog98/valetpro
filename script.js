@@ -2,8 +2,8 @@
 import { supabase } from './supabase.js';
 
 document.addEventListener("DOMContentLoaded", async function () {
-  /* BLINK STYLES */
-  (function ensureBlinkStyles(){
+  // ====== Estilos para parpadeo ======
+  (function ensureBlinkStyles() {
     const STYLE_ID = "blink-styles";
     if (document.getElementById(STYLE_ID)) return;
     const css = `
@@ -18,11 +18,11 @@ tr.blink-red    { animation: blinkRed 1s linear infinite; }
     document.head.appendChild(style);
   })();
 
-  // ===== SESIÓN (sessionStorage) =====
-  const userRole = sessionStorage.getItem("rol") || "Guest";
+  // ====== SESIÓN (sessionStorage) ======
+  const userRole  = sessionStorage.getItem("rol") || "Guest";
   const userEmail = sessionStorage.getItem("usuario") || "";
 
-  // ===== STATUS =====
+  // ====== Listas de status ======
   const cajeroStatuses = [
     "Complete","Tiene Doc","No ha pagado","Falta book","En Camino","Pert",
     "Dudas","Se va sin docs","Llaves a asesor","Lav. Cortesía","Test Drive",
@@ -35,12 +35,12 @@ tr.blink-red    { animation: blinkRed 1s linear infinite; }
     "Working","Falta Book","Listo","Grua","Lav. Cortesía","Status Asesor","Call Center","Cargando","Inspección"
   ];
 
-  // ===== HORA 12h TEXTO =====
+  // ====== Hora en 12h como texto ======
   function horaActual12h() {
     return new Date().toLocaleTimeString("en-US", { hour12: true, hour: "2-digit", minute: "2-digit" }).toUpperCase();
   }
 
-  // ===== VIN DECODER =====
+  // ====== VIN Decoder (NHTSA) ======
   async function handleVinBlur() {
     const vinEl = document.getElementById("vin");
     const modeloEl = document.getElementById("modelo");
@@ -58,7 +58,7 @@ tr.blink-red    { animation: blinkRed 1s linear infinite; }
   }
   window.handleVinBlur = handleVinBlur;
 
-  // ===== UI HELPERS =====
+  // ====== UI helpers ======
   function createDropdown(options, selectedValue, onChange, disabled) {
     const select = document.createElement("select");
     select.disabled = !!disabled;
@@ -80,41 +80,6 @@ tr.blink-red    { animation: blinkRed 1s linear infinite; }
     input.disabled = !!disabled;
     input.addEventListener("blur", (e) => onChange(e.target.value));
     return input;
-  }
-
-  function createDeleteButton(id, table) {
-    const btn = document.createElement("button");
-    btn.type = "button";
-    btn.textContent = "Eliminar";
-    btn.addEventListener("click", async () => {
-      if (!confirm("¿Eliminar este registro?")) return;
-      try {
-        const { error } = await supabase.from(table).delete().eq("id", id);
-        if (error) throw error;
-        await loadData();
-
-  // Recalcular blink cada 30s sin recargar datos
-  function refreshBlink() {
-    const tables = ['tabla-waiter','tabla-recogiendo','tabla-loaner','tabla-transporte'];
-    for (const tid of tables) {
-      const tableEl = document.getElementById(tid);
-      if (!tableEl) continue;
-      const rows = tableEl.querySelectorAll("tbody tr, tr"); // soporta tbody o tabla simple
-      rows.forEach((tr) => {
-        // reconstruir row mínimo desde atributos data si existen
-        const row = {};
-        // Podemos intentar leer dataset si lo hubiéramos puesto; como no, no recalculamos sin datos originales.
-        // Por simplicidad: no alteramos clases aquí; el blink se notará en la próxima recarga o podemos dejarlo así.
-      });
-    }
-  }
-  setInterval(() => { /* placeholder por si luego guardamos dataset */ }, 30000);
-      } catch (e) {
-        console.error("Error eliminando:", e);
-        alert(`No se pudo eliminar: ${e?.message || e}`);
-      }
-    });
-    return btn;
   }
 
   function createTimeInput(value, onChange, disabled) {
@@ -149,14 +114,32 @@ tr.blink-red    { animation: blinkRed 1s linear infinite; }
     return input;
   }
 
+  function createDeleteButton(id, table) {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.textContent = "Eliminar";
+    btn.addEventListener("click", async () => {
+      if (!confirm("¿Eliminar este registro?")) return;
+      try {
+        const { error } = await supabase.from(table).delete().eq("id", id);
+        if (error) throw error;
+        await loadData();
+      } catch (e) {
+        console.error("Error eliminando:", e);
+        alert(`No se pudo eliminar: ${e?.message || e}`);
+      }
+    });
+    return btn;
+  }
 
+  // ====== Helpers de tiempo/blink ======
   function parseCreatedAt(row) {
-    // Prefer timestamp column if exists
+    // Preferir created_at si existe (recomendado en BD)
     if (row.created_at) {
       const d = new Date(row.created_at);
       if (!isNaN(d)) return d;
     }
-    // Fallback: parse 'hora' 12h text with today's date, adjust if in future
+    // Fallback: parsear 'hora' 12h como hora de hoy; si queda a futuro, asumir ayer
     if (row.hora) {
       const s = String(row.hora).trim().toUpperCase();
       const m = s.match(/^([0-1]?\d):([0-5]\d)\s*(AM|PM)$/);
@@ -168,7 +151,6 @@ tr.blink-red    { animation: blinkRed 1s linear infinite; }
         if (ap === "AM") { if (hh === 12) hh = 0; }
         else { if (hh !== 12) hh += 12; }
         const d = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hh, mm, 0, 0);
-        // si queda a futuro (p.ej. 11:50 PM y ahora 12:05 AM), asumir ayer
         if (d.getTime() > now.getTime()) d.setDate(d.getDate() - 1);
         return d;
       }
@@ -180,7 +162,6 @@ tr.blink-red    { animation: blinkRed 1s linear infinite; }
     const v = row.promise_time;
     if (!v) return null;
     const now = new Date();
-    // Aceptar HH:MM 24h o 12h con AM/PM
     const s = String(v).trim().toUpperCase();
     let m = s.match(/^([0-2]?\d):([0-5]\d)$/);
     if (m) {
@@ -211,7 +192,7 @@ tr.blink-red    { animation: blinkRed 1s linear infinite; }
       else if (diffMin >= 5) blinkYellow = true;
     }
 
-    // Promise time: si está dentro de 30min desde ahora → amarillo (no pisa rojo)
+    // Promise time: si está dentro de 30 min desde ahora → amarillo (no pisa rojo)
     if (!blinkRed && row.promise_time) {
       const p = parsePromiseTime(row);
       if (p) {
@@ -222,53 +203,29 @@ tr.blink-red    { animation: blinkRed 1s linear infinite; }
     return { blinkYellow, blinkRed };
   }
 
-  // ===== FETCH con orden de más viejo a más nuevo =====
-  
-  
-  
+  // ====== SELECT: orden ascendente (más viejo primero) ======
   async function fetchTable(table) {
-    // Orden ASC: más viejo primero
     let r = await supabase.from(table).select("*").order("id", { ascending: true });
     if (!r.error) return r;
     r = await supabase.from(table).select("*").order("hora", { ascending: true });
     if (!r.error) return r;
     return await supabase.from(table).select("*");
   }
-);
-    if (!r.error) return r;
-    r = await supabase.from(table).select("*").order("hora", { ascending: true });
-    if (!r.error) return r;
-    return await supabase.from(table).select("*");
-  }
-);
-    if (!r.error) return r;
-    r = await supabase.from(table).select("*").order("hora", { ascending: false });
-    if (!r.error) return r;
-    return await supabase.from(table).select("*");
-  }
-);
-    if (!r.error) return r;
-    // fallback a hora ASC
-    r = await supabase.from(table).select("*").order("hora", { ascending: true });
-    if (!r.error) return r;
-    // último intento sin orden
-    return await supabase.from(table).select("*");
-  }
 
-  // ===== CARGA DE TABLAS =====
+  // ====== Render de tablas ======
   async function loadData() {
     const roles = {
-      admin: userRole === "Admin",
+      admin:  userRole === "Admin",
       cajero: userRole === "Cajero",
       jockey: userRole === "Jockey",
       transporte: userRole === "Transportacion" || userRole === "Transportación",
     };
 
     const configs = [
-      { table: "en_sala", elementId: "tabla-waiter", fields: ["hora","tag","modelo","color","asesor","descripcion","status","promise_time"] },
-      { table: "recogiendo", elementId: "tabla-recogiendo", fields: ["hora","tag","modelo","color","asesor","descripcion","status_cajero","status_jockey"] },
-      { table: "loaners", elementId: "tabla-loaner", fields: ["hora","nombre_cliente"] },
-      { table: "transportaciones", elementId: "tabla-transporte", fields: ["hora","nombre","telefono","direccion","personas","asignado"] },
+      { table: "en_sala",          elementId: "tabla-waiter",      fields: ["hora","tag","modelo","color","asesor","descripcion","status","promise_time"] },
+      { table: "recogiendo",       elementId: "tabla-recogiendo",  fields: ["hora","tag","modelo","color","asesor","descripcion","status_cajero","status_jockey"] },
+      { table: "loaners",          elementId: "tabla-loaner",      fields: ["hora","nombre_cliente"] },
+      { table: "transportaciones", elementId: "tabla-transporte",  fields: ["hora","nombre","telefono","direccion","personas","asignado"] },
     ];
 
     for (const { table, elementId, fields } of configs) {
@@ -290,6 +247,7 @@ tr.blink-red    { animation: blinkRed 1s linear infinite; }
       tbody.innerHTML = "";
       for (const row of data) {
         const tr = document.createElement("tr");
+
         for (const field of fields) {
           const td = document.createElement("td");
 
@@ -310,6 +268,7 @@ tr.blink-red    { animation: blinkRed 1s linear infinite; }
                 console.error("Error actualizando status (en_sala):", error);
                 return;
               }
+              // Mover a 'recogiendo' si pasa a 'Falta book'
               if (String(val).toLowerCase() === "falta book") {
                 try {
                   const insertPayload = {
@@ -326,23 +285,6 @@ tr.blink-red    { animation: blinkRed 1s linear infinite; }
                   const { error: delErr } = await supabase.from("en_sala").delete().eq("id", row.id);
                   if (delErr) throw delErr;
                   await loadData();
-
-  // Recalcular blink cada 30s sin recargar datos
-  function refreshBlink() {
-    const tables = ['tabla-waiter','tabla-recogiendo','tabla-loaner','tabla-transporte'];
-    for (const tid of tables) {
-      const tableEl = document.getElementById(tid);
-      if (!tableEl) continue;
-      const rows = tableEl.querySelectorAll("tbody tr, tr"); // soporta tbody o tabla simple
-      rows.forEach((tr) => {
-        // reconstruir row mínimo desde atributos data si existen
-        const row = {};
-        // Podemos intentar leer dataset si lo hubiéramos puesto; como no, no recalculamos sin datos originales.
-        // Por simplicidad: no alteramos clases aquí; el blink se notará en la próxima recarga o podemos dejarlo así.
-      });
-    }
-  }
-  setInterval(() => { /* placeholder por si luego guardamos dataset */ }, 30000);
                 } catch (e) {
                   console.error("Error moviendo a Recogiendo:", e);
                   alert(`No se pudo mover a Recogiendo: ${e?.message || e}`);
@@ -351,9 +293,6 @@ tr.blink-red    { animation: blinkRed 1s linear infinite; }
             }, false));
           } else if (field === "promise_time" && table === "en_sala" && (roles.admin || roles.cajero)) {
             td.appendChild(createTimeInput(row[field], async (val) => {
-              const { error } = await supabase.from(table).update({ promise_time: val }).eq("id", row.id);
-              if (error) console.error("Error actualizando promise_time:", error);
-            }, false));) => {
               const { error } = await supabase.from(table).update({ promise_time: val }).eq("id", row.id);
               if (error) console.error("Error actualizando promise_time:", error);
             }, false));
@@ -365,17 +304,19 @@ tr.blink-red    { animation: blinkRed 1s linear infinite; }
           } else {
             td.textContent = row[field] ?? "";
           }
+
           tr.appendChild(td);
         }
-        // BLINK logic per row
-        const cls = classifyBlink(row);
-        tr.classList.remove('blink-yellow','blink-red');
-        if (cls.blinkRed) tr.classList.add('blink-red');
-        else if (cls.blinkYellow) tr.classList.add('blink-yellow');
 
-        // Acciones (Eliminar)
+        // Parpadeo por tiempo / promise_time
+        const cls = classifyBlink(row);
+        tr.classList.remove("blink-yellow","blink-red");
+        if (cls.blinkRed) tr.classList.add("blink-red");
+        else if (cls.blinkYellow) tr.classList.add("blink-yellow");
+
+        // Botón Eliminar en todas las tablas operadas por Cajero/Admin, incluyendo en_sala
         const addDelete =
-          (roles.admin || roles.cajero) &&
+          (userRole === "Admin" || userRole === "Cajero") &&
           (table === "recogiendo" || table === "loaners" || table === "transportaciones" || table === "en_sala");
         if (addDelete) {
           const actionTd = document.createElement("td");
@@ -390,24 +331,7 @@ tr.blink-red    { animation: blinkRed 1s linear infinite; }
 
   await loadData();
 
-  // Recalcular blink cada 30s sin recargar datos
-  function refreshBlink() {
-    const tables = ['tabla-waiter','tabla-recogiendo','tabla-loaner','tabla-transporte'];
-    for (const tid of tables) {
-      const tableEl = document.getElementById(tid);
-      if (!tableEl) continue;
-      const rows = tableEl.querySelectorAll("tbody tr, tr"); // soporta tbody o tabla simple
-      rows.forEach((tr) => {
-        // reconstruir row mínimo desde atributos data si existen
-        const row = {};
-        // Podemos intentar leer dataset si lo hubiéramos puesto; como no, no recalculamos sin datos originales.
-        // Por simplicidad: no alteramos clases aquí; el blink se notará en la próxima recarga o podemos dejarlo así.
-      });
-    }
-  }
-  setInterval(() => { /* placeholder por si luego guardamos dataset */ }, 30000);
-
-  // ===== FORM INSERT =====
+  // ====== FORM INSERT ======
   const form = document.getElementById("pickup-form");
   form?.addEventListener("submit", async (e) => {
     e.preventDefault();
@@ -423,6 +347,7 @@ tr.blink-red    { animation: blinkRed 1s linear infinite; }
 
     try {
       if (proposito === "Recogiendo") {
+        // status_cajero por defecto en BLANCO (no seteamos valor)
         const payload = { hora, tag, modelo, color, asesor, descripcion };
         const { error } = await supabase.from("recogiendo").insert([payload]);
         if (error) throw error;
@@ -452,23 +377,6 @@ tr.blink-red    { animation: blinkRed 1s linear infinite; }
       document.getElementById("proposito").dispatchEvent(new Event("change"));
 
       await loadData();
-
-  // Recalcular blink cada 30s sin recargar datos
-  function refreshBlink() {
-    const tables = ['tabla-waiter','tabla-recogiendo','tabla-loaner','tabla-transporte'];
-    for (const tid of tables) {
-      const tableEl = document.getElementById(tid);
-      if (!tableEl) continue;
-      const rows = tableEl.querySelectorAll("tbody tr, tr"); // soporta tbody o tabla simple
-      rows.forEach((tr) => {
-        // reconstruir row mínimo desde atributos data si existen
-        const row = {};
-        // Podemos intentar leer dataset si lo hubiéramos puesto; como no, no recalculamos sin datos originales.
-        // Por simplicidad: no alteramos clases aquí; el blink se notará en la próxima recarga o podemos dejarlo así.
-      });
-    }
-  }
-  setInterval(() => { /* placeholder por si luego guardamos dataset */ }, 30000);
       alert("Pickup creado correctamente.");
     } catch (err) {
       console.error("Error insertando pickup:", err);

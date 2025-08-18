@@ -53,13 +53,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         return;
     }
 
+    console.log('Datos a insertar:', data);
     const { error } = await supabase.from(tablaDestino).insert([data]);
 
     if (error) {
-      console.error(error);
-      alert('Error al agregar pickup.');
+      console.error('Supabase insert error:', error);
+      console.warn('Error al agregar pickup:', error.message);
     } else {
-      alert('Pickup agregado con éxito.');
+      console.log('Pickup agregado con éxito.');
       location.reload();
     }
   });
@@ -91,7 +92,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 async function loadRecogiendo() {
   const { data, error } = await supabase.from('recogiendo').select('*').order('hora', { ascending: false });
-  if (error) return console.error(error);
+  if (error) return console.error('Supabase insert error:', error);
   const tbody = document.querySelector('#tabla-recogiendo tbody');
   tbody.innerHTML = '';
   data.forEach(row => {
@@ -112,7 +113,7 @@ async function loadRecogiendo() {
 
 async function loadEnSala() {
   const { data, error } = await supabase.from('en_sala').select('*').order('hora', { ascending: false });
-  if (error) return console.error(error);
+  if (error) return console.error('Supabase insert error:', error);
   const tbody = document.querySelector('#tabla-waiter tbody');
   tbody.innerHTML = '';
   data.forEach(row => {
@@ -132,7 +133,7 @@ async function loadEnSala() {
 
 async function loadLoaners() {
   const { data, error } = await supabase.from('loaners').select('*').order('hora', { ascending: false });
-  if (error) return console.error(error);
+  if (error) return console.error('Supabase insert error:', error);
   const tbody = document.querySelector('#tabla-loaner tbody');
   tbody.innerHTML = '';
   data.forEach(row => {
@@ -147,7 +148,7 @@ async function loadLoaners() {
 
 async function loadTransportacion() {
   const { data, error } = await supabase.from('transportaciones').select('*').order('hora', { ascending: false });
-  if (error) return console.error(error);
+  if (error) return console.error('Supabase insert error:', error);
   const tbody = document.querySelector('#tabla-transporte tbody');
   tbody.innerHTML = '';
   data.forEach(row => {

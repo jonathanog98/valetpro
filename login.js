@@ -1,53 +1,110 @@
+// login.js — Supabase SDK v2 (ESM)
+import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.43.4/+esm'
 
-const supabase = supabase.createClient("https://vkrphvjhlnogvvdmhjnn.supabase.co", "public-anon-key");
+// Project credentials (from user)
+const SUPABASE_URL = 'https://sqllpksunzuyzkzgmhuo.supabase.co'
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNxbGxwa3N1bnp1eXpremdtaHVvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTUyNjIzNjQsImV4cCI6MjA3MDgzODM2NH0.Oesm9_iFmdJRQORSWL2AQUy3ynQrQX7H0UY5YA2Ow7A'
 
-document.getElementById("login-form").addEventListener("submit", async function (e) {
-  e.preventDefault();
+const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
 
-  const email = document.getElementById("email").value;
-  const password = document.getElementById("password").value;
-  const btn = document.getElementById("login-btn");
+// DOM helpers
+const $ = (id) => document.getElementById(id)
+const form = $('login-form')
+const emailEl = $('email')
+const passEl = $('password')
+const btn = $('login-btn')
+const errBox = $('error-msg')
 
-  btn.disabled = true;
-  btn.textContent = "Ingresando...";
-
-  const { error: loginError } = await supabase.auth.signInWithPassword({ email, password });
-
-  if (loginError) {
-    showError("Credenciales incorrectas.");
-    btn.disabled = false;
-    btn.textContent = "Ingresar";
-    return;
+function showError(msg) {
+  if (errBox) {
+    errBox.textContent = msg || 'Error de autenticación.'
+    errBox.style.display = 'block'
   }
-
-  const { data: userData, error: userError } = await supabase
-    .from("users")
-    .select("role")
-    .eq("email", email)
-    .single();
-
-  if (userError || !userData?.role) {
-    showError("No se pudo obtener el rol del usuario.");
-    btn.disabled = false;
-    btn.textContent = "Ingresar";
-    return;
-  }
-
-  sessionStorage.setItem("rol", userData.role);
-
-  if (userData.role === "Admin") {
-    window.location.href = "admin.html";
-  } else if (userData.role === "Cajero") {
-    window.location.href = "index.html";
-  } else {
-    showError("Rol no autorizado.");
-    btn.disabled = false;
-    btn.textContent = "Ingresar";
-  }
-});
-
-function showError(message) {
-  const errorDiv = document.getElementById("error-message");
-  errorDiv.textContent = message;
-  errorDiv.style.display = "block";
+  console.error('[LOGIN]', msg)
 }
+
+function clearError() {
+  if (errBox) errBox.style.display = 'none'
+}
+
+form?.addEventListener('submit', async (e) => {
+  e.preventDefault()
+  clearError()
+
+  const email = (emailEl?.value || '').trim()
+  const password = passEl?.value || ''
+
+  if (!email || !password) {
+    showError('Escribe correo y contraseña.')
+    return
+  }
+
+  try {
+    btn.disabled = true
+    btn.textContent = 'Ingresando…'
+
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password })
+    if (error) {
+      showError(error.message || 'No se pudo iniciar sesión.')
+      btn.disabled = false
+      btn.textContent = 'Ingresar'
+      return
+    }
+
+    if (!data?.session) {
+      showError('No se obtuvo sesión. Verifica el correo o la contraseña.')
+      btn.disabled = false
+      btn.textContent = 'Ingresar'
+      return
+    }
+
+    // Obtener usuario
+    const { data: userResp } = await supabase.auth.getUser()
+    const user = userResp?.user
+    if (!user) {
+      showError('No se pudo obtener el usuario autenticado.')
+      btn.disabled = false
+      btn.textContent = 'Ingresar'
+      return
+    }
+
+    // Buscar rol desde user_roles → roles(name)
+    // Requiere FK user_roles.role_id → roles.id
+    const { data: roles, error: rolesError } = await supabase
+      .from('user_roles')
+      .select('roles(name)')
+      .eq('user_id', user.id)
+
+    if (rolesError) {
+      showError('No se pudo consultar el rol del usuario.')
+      btn.disabled = false
+      btn.textContent = 'Ingresar'
+      return
+    }
+
+    const roleName = roles?.[0]?.roles?.name
+    if (!roleName) {
+      showError('Tu usuario no tiene rol asignado. Contacta al administrador.')
+      btn.disabled = false
+      btn.textContent = 'Ingresar'
+      return
+    }
+
+    // Persistir para index.html (usa sessionStorage)
+    try {
+      sessionStorage.setItem('usuario', user.email || email)
+      sessionStorage.setItem('rol', roleName)
+    } catch {}
+
+    // Redirección según rol
+    if (roleName === 'Admin') {
+      window.location.href = new URL('admin.html', window.location.href).href
+    } else {
+      window.location.href = new URL('index.html', window.location.href).href
+    }
+  } catch (err) {
+    showError(err?.message || String(err))
+    btn.disabled = false
+    btn.textContent = 'Ingresar'
+  }
+})

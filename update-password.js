@@ -1,85 +1,98 @@
-// update-password.js — Supabase v2 (ESM) password recovery handler
+// update-password.js — robust recovery handler for Supabase v2
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.43.4/+esm'
 
-// === Your project (provided by you) ===
 const SUPABASE_URL = 'https://sqllpksunzuyzkzgmhuo.supabase.co'
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNxbGxwa3N1bnp1eXpremdtaHVvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTUyNjIzNjQsImV4cCI6MjA3MDgzODM2NH0.Oesm9_iFmdJRQORSWL2AQUy3ynQrQX7H0UY5YA2Ow7A'
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
 
 const $ = (id) => document.getElementById(id)
+const msg = $('msg')
+const btn = $('btn')
 const form = $('reset-form')
-const btn  = $('btn')
-const msg  = $('msg')
-const pwd1 = $('pwd')
-const pwd2 = $('pwd2')
+const hashError = $('hash-error')
 
-function show(text, type = '') {
-  msg.className = 'msg ' + (type ? (type === 'ok' ? 'ok' : 'err') : '')
-  msg.textContent = text
+function show(el, text, type='err') {
+  el.classList.remove('hidden')
+  el.className = 'msg ' + (type === 'ok' ? 'ok' : 'err')
+  el.textContent = text
 }
 
-function parseParams() {
-  // Supabase envía tokens en el hash (#) por defecto: #access_token=...&refresh_token=...&type=recovery
+function parseHash() {
   const hash = new URLSearchParams(window.location.hash.replace(/^#/, ''))
   const search = new URLSearchParams(window.location.search)
-
-  const access_token  = hash.get('access_token')  || search.get('access_token')
-  const refresh_token = hash.get('refresh_token') || search.get('refresh_token')
   const type = hash.get('type') || search.get('type')
-  return { access_token, refresh_token, type }
+  const access_token = hash.get('access_token') || search.get('access_token')
+  const refresh_token = hash.get('refresh_token') || search.get('refresh_token')
+  const error = hash.get('error') || search.get('error')
+  const error_code = hash.get('error_code') || search.get('error_code')
+  const error_description = hash.get('error_description') || search.get('error_description')
+  return { type, access_token, refresh_token, error, error_code, error_description }
 }
 
-async function ensureSessionFromRecovery() {
-  const { access_token, refresh_token, type } = parseParams()
-  if (type !== 'recovery' || !access_token || !refresh_token) {
-    show('El enlace de recuperación no es válido o expiró. Solicita uno nuevo desde la pantalla de login.')
-    throw new Error('Missing or invalid recovery tokens')
+async function ensureRecoverySession() {
+  const { type, access_token, refresh_token, error, error_code, error_description } = parseHash()
+
+  if (error) {
+    show(hashError, `${error_description || error} (${error_code || 'error'})`)
+    throw new Error(error_description || error)
   }
-  // Establece la sesión temporal con los tokens recibidos
-  const { data, error } = await supabase.auth.setSession({ access_token, refresh_token })
-  if (error) throw error
-  return data
+
+  if (type !== 'recovery') {
+    show(hashError, 'El enlace de recuperación no es válido. Solicita un nuevo enlace desde la pantalla de login.')
+    throw new Error('Invalid type')
+  }
+  if (!access_token || !refresh_token) {
+    show(hashError, 'Faltan tokens de recuperación en la URL. Vuelve a solicitar el enlace.')
+    throw new Error('Missing tokens')
+  }
+  const { error: setErr } = await supabase.auth.setSession({ access_token, refresh_token })
+  if (setErr) {
+    show(hashError, 'No fue posible activar la sesión de recuperación: ' + setErr.message)
+    throw setErr
+  }
 }
 
 form?.addEventListener('submit', async (e) => {
   e.preventDefault()
-  show('Procesando…')
-  btn.disabled = true
+  msg.textContent = ''
+  hashError.classList.add('hidden')
+
+  const pwd1 = document.getElementById('pwd').value
+  const pwd2 = document.getElementById('pwd2').value
+  if (pwd1 !== pwd2) {
+    show(msg, 'Las contraseñas no coinciden.')
+    return
+  }
+  if (pwd1.length < 8) {
+    show(msg, 'La contraseña debe tener al menos 8 caracteres.')
+    return
+  }
 
   try {
-    if (pwd1.value !== pwd2.value) {
-      show('Las contraseñas no coinciden.')
-      btn.disabled = false
-      return
-    }
-    if (pwd1.value.length < 8) {
-      show('La contraseña debe tener al menos 8 caracteres.')
-      btn.disabled = false
-      return
-    }
+    btn.disabled = true
+    btn.textContent = 'Procesando…'
 
-    await ensureSessionFromRecovery()
+    await ensureRecoverySession()
 
-    // Con la sesión activa por el link de recuperación, ahora sí cambiamos la contraseña
-    const { data, error } = await supabase.auth.updateUser({ password: pwd1.value })
+    const { error } = await supabase.auth.updateUser({ password: pwd1 })
     if (error) throw error
 
-    show('Contraseña actualizada correctamente. Ya puedes iniciar sesión.', 'ok')
-    // Limpia el hash para mayor seguridad
+    show(msg, 'Contraseña actualizada correctamente. Ya puedes iniciar sesión.', 'ok')
+    // Limpia los tokens del hash por seguridad
     history.replaceState(null, '', window.location.pathname)
   } catch (err) {
-    console.error(err)
-    show('No se pudo actualizar la contraseña: ' + (err?.message || String(err)), 'err')
+    show(msg, 'No se pudo actualizar la contraseña: ' + (err?.message || String(err)))
   } finally {
     btn.disabled = false
+    btn.textContent = 'Actualizar contraseña'
   }
 })
 
-// Mensaje útil si llega sin tokens
+// Al cargar, si ya viene un error en el hash, muéstralo
 window.addEventListener('DOMContentLoaded', () => {
-  const { access_token, refresh_token, type } = parseParams()
-  if (!access_token || !refresh_token || type !== 'recovery') {
-    show('Abre este enlace solo desde el email de recuperación.')
+  const { error, error_code, error_description } = parseHash()
+  if (error) {
+    show(hashError, `${error_description || error} (${error_code || 'error'})`)
   }
 })

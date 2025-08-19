@@ -1,7 +1,7 @@
-// login.js — Supabase SDK v2 (ESM)
+// login.js — Supabase SDK v2 (ESM) + Forgot Password
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.43.4/+esm'
 
-// Project credentials (from user)
+// Project credentials
 const SUPABASE_URL = 'https://sqllpksunzuyzkzgmhuo.supabase.co'
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNxbGxwa3N1bnp1eXpremdtaHVvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTUyNjIzNjQsImV4cCI6MjA3MDgzODM2NH0.Oesm9_iFmdJRQORSWL2AQUy3ynQrQX7H0UY5YA2Ow7A'
 
@@ -12,49 +12,45 @@ const $ = (id) => document.getElementById(id)
 const form = $('login-form')
 const emailEl = $('email')
 const passEl = $('password')
-const btn = $('login-btn')
-const errBox = $('error-msg')
+const btn = $('login-btn') || $('loginBtn') || document.querySelector('button[type="submit"]')
+const msgBox = $('login-msg') || $('error-msg')
+const forgot = $('forgot-link')
 
-function showError(msg) {
-  if (errBox) {
-    errBox.textContent = msg || 'Error de autenticación.'
-    errBox.style.display = 'block'
-  }
-  console.error('[LOGIN]', msg)
+function setMsg(text, type = 'err') {
+  if (!msgBox) return console.log('[LOGIN]', text)
+  msgBox.textContent = text
+  msgBox.style.display = 'block'
+  // opcional: estilos según tipo
+  msgBox.classList.remove('ok', 'err')
+  msgBox.classList.add(type === 'ok' ? 'ok' : 'err')
 }
-
-function clearError() {
-  if (errBox) errBox.style.display = 'none'
-}
+function clearMsg() { if (msgBox) msgBox.style.display = 'none' }
 
 form?.addEventListener('submit', async (e) => {
   e.preventDefault()
-  clearError()
+  clearMsg()
 
   const email = (emailEl?.value || '').trim()
   const password = passEl?.value || ''
 
   if (!email || !password) {
-    showError('Escribe correo y contraseña.')
+    setMsg('Escribe correo y contraseña.')
     return
   }
 
   try {
-    btn.disabled = true
-    btn.textContent = 'Ingresando…'
+    if (btn) { btn.disabled = true; btn.textContent = 'Ingresando…' }
 
     const { data, error } = await supabase.auth.signInWithPassword({ email, password })
     if (error) {
-      showError(error.message || 'No se pudo iniciar sesión.')
-      btn.disabled = false
-      btn.textContent = 'Ingresar'
+      setMsg(error.message || 'No se pudo iniciar sesión.')
+      if (btn) { btn.disabled = false; btn.textContent = 'Ingresar' }
       return
     }
 
     if (!data?.session) {
-      showError('No se obtuvo sesión. Verifica el correo o la contraseña.')
-      btn.disabled = false
-      btn.textContent = 'Ingresar'
+      setMsg('No se obtuvo sesión. Verifica el correo o la contraseña.')
+      if (btn) { btn.disabled = false; btn.textContent = 'Ingresar' }
       return
     }
 
@@ -62,31 +58,27 @@ form?.addEventListener('submit', async (e) => {
     const { data: userResp } = await supabase.auth.getUser()
     const user = userResp?.user
     if (!user) {
-      showError('No se pudo obtener el usuario autenticado.')
-      btn.disabled = false
-      btn.textContent = 'Ingresar'
+      setMsg('No se pudo obtener el usuario autenticado.')
+      if (btn) { btn.disabled = false; btn.textContent = 'Ingresar' }
       return
     }
 
     // Buscar rol desde user_roles → roles(name)
-    // Requiere FK user_roles.role_id → roles.id
     const { data: roles, error: rolesError } = await supabase
       .from('user_roles')
       .select('roles(name)')
       .eq('user_id', user.id)
 
     if (rolesError) {
-      showError('No se pudo consultar el rol del usuario.')
-      btn.disabled = false
-      btn.textContent = 'Ingresar'
+      setMsg('No se pudo consultar el rol del usuario.')
+      if (btn) { btn.disabled = false; btn.textContent = 'Ingresar' }
       return
     }
 
     const roleName = roles?.[0]?.roles?.name
     if (!roleName) {
-      showError('Tu usuario no tiene rol asignado. Contacta al administrador.')
-      btn.disabled = false
-      btn.textContent = 'Ingresar'
+      setMsg('Tu usuario no tiene rol asignado. Contacta al administrador.')
+      if (btn) { btn.disabled = false; btn.textContent = 'Ingresar' }
       return
     }
 
@@ -97,14 +89,32 @@ form?.addEventListener('submit', async (e) => {
     } catch {}
 
     // Redirección según rol
-    if (roleName === 'Admin') {
-      window.location.href = new URL('admin.html', window.location.href).href
-    } else {
-      window.location.href = new URL('index.html', window.location.href).href
-    }
+    window.location.href = new URL(roleName === 'Admin' ? 'admin.html' : 'index.html', window.location.href).href
   } catch (err) {
-    showError(err?.message || String(err))
-    btn.disabled = false
-    btn.textContent = 'Ingresar'
+    setMsg(err?.message || String(err))
+    if (btn) { btn.disabled = false; btn.textContent = 'Ingresar' }
+  }
+})
+
+// Forgot password: envía email con redirect a tu página update-password.html
+forgot?.addEventListener('click', async (e) => {
+  e.preventDefault()
+  clearMsg()
+
+  const email = (emailEl?.value || '').trim()
+  if (!email) {
+    setMsg('Escribe tu correo en el campo y vuelve a tocar "Recuperar contraseña".')
+    return
+  }
+  try {
+    if (btn) { btn.disabled = true; btn.textContent = 'Enviando…' }
+    const redirectTo = 'https://valetpro-ag.com/update-password.html'
+    const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo })
+    if (error) throw error
+    setMsg('Te enviamos un enlace para restablecer la contraseña. Revisa tu bandeja de entrada.', 'ok')
+  } catch (err) {
+    setMsg('No se pudo enviar el email de recuperación: ' + (err?.message || String(err)))
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'Ingresar' }
   }
 })

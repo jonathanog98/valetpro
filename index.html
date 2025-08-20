@@ -1,5 +1,4 @@
 <!DOCTYPE html>
-
 <html lang="es">
 <head>
 <meta charset="utf-8"/>
@@ -57,7 +56,7 @@
 </select>
 </label>
 <div class="extra" id="extra-fields">
-<!-- Campos dinámicos insertados aquí -->
+<!-- Campos dinámicos insertados aquí por script.js -->
 </div>
 <button type="submit">Agregar</button>
 </form>
@@ -88,14 +87,24 @@
 <div class="table-wrapper">
 <h2>Loaner</h2>
 <table id="tabla-loaner">
-<thead><tr><th>Hora</th><th>Nombre Cliente</th><th>Descripción</th><th>Acciones</th></tr></thead>
+<thead><tr><th>Hora</th><th>Nombre Cliente</th><th>Hora de la Cita</th><th>Descripción</th><th>Acciones</th></tr></thead>
 <tbody></tbody>
 </table>
 </div>
 <div class="table-wrapper">
 <h2>Transportación</h2>
 <table id="tabla-transporte">
-<thead><tr><th>Hora</th><th>Nombre</th><th>Teléfono</th><th>Dirección</th><th>Personas</th><th>Asignado</th><th>Acciones</th></tr></thead>
+<thead><tr>
+<th>Hora</th>
+<th>Nombre</th>
+<th>Teléfono</th>
+<th>Dirección</th>
+<th>Cantidad</th>
+<th>Descripción</th>
+<th>¿Desea recogido?</th>
+<th>Asignado</th>
+<th>Acciones</th>
+</tr></thead>
 <tbody></tbody>
 </table>
 </div>
@@ -116,45 +125,5 @@
 </main>
 </div>
 <script src="script.js" type="module"></script>
-<script type="module">
-  const extraFields = document.getElementById('extra-fields');
-  const proposito = document.getElementById('proposito');
-
-  const fields = {
-    Recogiendo: ['vin', 'tag', 'modelo', 'color', 'asesor', 'descripcion'],
-    Waiter: ['vin', 'tag', 'modelo', 'color', 'asesor', 'descripcion'],
-    Loaner: ['nombre', 'hora_cita', 'descripcion'],
-    'Transportación': ['nombre', 'telefono', 'direccion', 'personas', 'descripcion']
-  };
-
-  const fieldTemplates = {
-    vin: () => `<label>VIN <input id="vin" maxlength="17" type="text"/></label>`,
-    tag: () => `<label>TAG <input id="tag" type="text"/></label>`,
-    modelo: () => `<label>Modelo <input id="modelo" type="text"/></label>`,
-    color: () => `<label>Color <input id="color" type="text"/></label>`,
-    asesor: () => `<label>Asesor <input id="asesor" type="text"/></label>`,
-    descripcion: () => `<label>Descripción <input id="descripcion" type="text"/></label>`,
-    nombre: () => `<label>Nombre <input id="nombre" type="text"/></label>`,
-    telefono: () => `<label>Teléfono <input id="telefono" type="text"/></label>`,
-    direccion: () => `<label>Dirección <input id="direccion" type="text"/></label>`,
-    personas: () => `<label>Cantidad de Personas <input id="personas" type="number"/></label>`,
-    hora_cita: () => `<label>Hora de la Cita <input id="hora_cita" type="time"/></label>`
-  };
-
-  function renderFieldsFor(purpose) {
-    extraFields.innerHTML = '';
-    fields[purpose]?.forEach(f => {
-      extraFields.innerHTML += fieldTemplates[f]();
-    });
-    if (purpose === 'Recogiendo' || purpose === 'Waiter') {
-      setTimeout(() => {
-        document.getElementById('vin')?.addEventListener('blur', window.handleVinBlur);
-      }, 0);
-    }
-  }
-
-  proposito.addEventListener('change', () => renderFieldsFor(proposito.value));
-  renderFieldsFor(proposito.value);
-</script>
 </body>
 </html>

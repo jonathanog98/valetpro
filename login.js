@@ -29,7 +29,9 @@ document.addEventListener('DOMContentLoaded', () => {
       const { data, error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) throw error;
 
-      // 2) Buscar rol desde relaciones
+      const userId = data.user.id;
+
+// 2) Buscar rol desde relaciones
 const { data: user_roles, error: rolesError } = await supabase
   .from('user_roles')
   .select('role_id')

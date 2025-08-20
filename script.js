@@ -428,3 +428,84 @@ if (table === "en_sala" && field === "status" && inp.value === "Falta Book") {
   if (allowed.has('loaners')) loadLoaner();
   if (allowed.has('transportaciones')) loadTransportes();
 });
+
+
+function canViewAllTables(role) {
+  role = (role||'').toLowerCase();
+  return role === 'admin' || role === 'cajero';
+}
+
+function allowedTablesForRole(role) {
+  if (canViewAllTables(role)) return ['en_sala','recogiendo','loaners','transportaciones'];
+  role = (role||'').toLowerCase();
+  if (role === 'jockey') return ['recogiendo'];
+  if (role === 'loaner' || role === 'loaners') return ['loaners'];
+  if (role === 'transportación' || role === 'transportacion') return ['transportaciones'];
+  return [];
+}
+
+function renderFields(){
+  const form = document.getElementById("pickup-form");
+  if (!form) return;
+  const select = document.getElementById("proposito");
+  const container = document.getElementById("extra-fields");
+  container.innerHTML = '';
+  const value = select.value;
+
+  const inputField = (label, id, type = "text") => {
+    const div = document.createElement("div");
+    const lbl = document.createElement("label");
+    lbl.textContent = label;
+    const inp = document.createElement("input");
+    inp.type = type;
+    inp.id = id;
+    inp.required = true;
+    div.appendChild(lbl);
+    div.appendChild(inp);
+    return div;
+  };
+
+  if (!allowedTablesForRole(ROLE).includes(value)) {
+    form.style.display = "none";
+    return;
+  }
+
+  form.style.display = "block";
+  if (value === "recogiendo") {
+    container.appendChild(inputField("TAG", "tag"));
+    container.appendChild(inputField("Modelo", "modelo"));
+    container.appendChild(inputField("Color", "color"));
+    container.appendChild(inputField("Asesor", "asesor"));
+    container.appendChild(inputField("Descripción", "descripcion"));
+  } else if (value === "waiter") {
+    container.appendChild(inputField("TAG", "tag"));
+    container.appendChild(inputField("Modelo", "modelo"));
+    container.appendChild(inputField("Color", "color"));
+    container.appendChild(inputField("Asesor", "asesor"));
+    container.appendChild(inputField("Descripción", "descripcion"));
+    container.appendChild(inputField("Promise Time", "promise_time", "time"));
+  } else if (value === "loaner") {
+    container.appendChild(inputField("Nombre Cliente", "cliente"));
+    container.appendChild(inputField("Hora de la Cita", "cita", "time"));
+    container.appendChild(inputField("Descripción", "descripcion"));
+  } else if (value === "transportación" || value === "transportacion") {
+    container.appendChild(inputField("Nombre", "nombre"));
+    container.appendChild(inputField("Teléfono", "telefono"));
+    container.appendChild(inputField("Dirección", "direccion"));
+    container.appendChild(inputField("Cantidad", "cantidad"));
+    container.appendChild(inputField("Descripción", "descripcion"));
+    const recogidoLabel = document.createElement("label");
+    recogidoLabel.textContent = "¿Desea recogido?";
+    const recogido = document.createElement("select");
+    recogido.id = "recogido";
+    for (const opt of ["Sí", "No"]) {
+      const o = document.createElement("option");
+      o.value = o.textContent = opt;
+      recogido.appendChild(o);
+    }
+    const div = document.createElement("div");
+    div.appendChild(recogidoLabel);
+    div.appendChild(recogido);
+    container.appendChild(div);
+  }
+}

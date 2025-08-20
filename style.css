@@ -242,3 +242,18 @@ table th,
 table td {
   padding: 12px 16px;
 }
+
+@keyframes blink-yellow {
+  0%, 100% { background-color: #fff9c4; }
+  50% { background-color: #fef08a; }
+}
+@keyframes blink-red {
+  0%, 100% { background-color: #fecaca; }
+  50% { background-color: #f87171; }
+}
+.flash-yellow {
+  animation: blink-yellow 1s infinite;
+}
+.flash-red {
+  animation: blink-red 1s infinite;
+}

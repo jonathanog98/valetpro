@@ -6,6 +6,15 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>ValetPro - Dashboard</title>
   <link rel="stylesheet" href="style.css">
+
+  <!-- Protección de sesión -->
+  <script>
+    const user = sessionStorage.getItem('usuario');
+    const role = sessionStorage.getItem('rol');
+    if (!user || !role) {
+      window.location.href = 'login.html';
+    }
+  </script>
 </head>
 <body>
   <header class="topbar">

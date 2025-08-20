@@ -148,7 +148,107 @@ async function handleSubmit(e){
 
 // ===== Init =====
 document.addEventListener('DOMContentLoaded', () => {
+  cargarPickupsDesdeSupabase();
   $('#proposito')?.addEventListener('change', renderFields);
   $('#pickup-form')?.addEventListener('submit', handleSubmit);
   renderFields(); // Render inicial
 });
+
+
+
+async function cargarPickupsDesdeSupabase() {
+  await initSupabase();
+  const propKeys = Object.keys(TABLE_BY_PURPOSE);
+
+  for (const key of propKeys) {
+    const table = TABLE_BY_PURPOSE[key];
+    const { data, error } = await supabase.from(table).select('*');
+    if (error || !data) continue;
+
+    data.forEach(item => {
+      const row = document.createElement('tr');
+      const hora = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+
+      if (table === 'recogiendo') {
+        row.innerHTML = \`
+          <td>\${hora}</td>
+          <td>\${item.tag || ''}</td>
+          <td>\${item.modelo || ''}</td>
+          <td>\${item.color || ''}</td>
+          <td>\${item.asesor || ''}</td>
+          <td>\${item.descripcion || ''}</td>
+          <td>
+            <select class="status-cajero">
+              <option>—</option>
+              <option \${item.status_cajero==='Complete'?'selected':''}>Complete</option>
+              <option>Tiene Doc.</option><option>No ha pagado</option>
+              <option>Falta Book</option><option>En Camino</option><option>Pert.</option>
+              <option>Dudas</option><option>Se va sin docs.</option><option>Llaves a asesor</option>
+              <option>Test Drive</option><option>Lav. Cortesía</option><option>Llevar a taller</option>
+              <option>Inspección</option><option>Valet</option><option>Poner a cargar</option><option>Grúa</option>
+            </select>
+          </td>
+          <td>
+            <select class="status-jockey">
+              <option>—</option>
+              <option \${item.status_jockey==='Arriba'?'selected':''}>Arriba</option>
+              <option>Subiendo</option><option>Lavado</option>
+              <option>Working</option><option>No Lavar</option><option>Taller</option>
+              <option>Secado</option><option>Ubicada</option><option>Detailing</option><option>Zona Blanca</option>
+            </select>
+          </td>
+          <td><button class="btn-delete" data-id="\${item.id}" data-table="\${table}">Eliminar</button></td>
+        \`;
+        $('#tabla-recogiendo tbody')?.appendChild(row);
+      }
+
+      else if (table === 'en_sala') {
+        row.innerHTML = \`
+          <td>\${hora}</td>
+          <td>\${item.tag || ''}</td>
+          <td>\${item.modelo || ''}</td>
+          <td>\${item.color || ''}</td>
+          <td>\${item.asesor || ''}</td>
+          <td>\${item.descripcion || ''}</td>
+          <td>
+            <select class="status-general">
+              <option>—</option>
+              <option>Falta Book</option><option>Status asesor</option>
+              <option>Cargando</option><option>Complete</option>
+              <option>Grúa</option><option>Call Center</option>
+            </select>
+          </td>
+          <td>\${item.promise_time || ''}</td>
+          <td><button class="btn-delete" data-id="\${item.id}" data-table="\${table}">Eliminar</button></td>
+        \`;
+        $('#tabla-waiter tbody')?.appendChild(row);
+      }
+
+      else if (table === 'loaners') {
+        row.innerHTML = \`
+          <td>\${hora}</td>
+          <td>\${item.nombre || ''}</td>
+          <td>\${item.hora_cita || ''}</td>
+          <td>\${item.descripcion || ''}</td>
+          <td><button class="btn-delete" data-id="\${item.id}" data-table="\${table}">Eliminar</button></td>
+        \`;
+        $('#tabla-loaner tbody')?.appendChild(row);
+      }
+
+      else if (table === 'transportaciones') {
+        row.innerHTML = \`
+          <td>\${hora}</td>
+          <td>\${item.nombre || ''}</td>
+          <td>\${item.telefono || ''}</td>
+          <td>\${item.direccion || ''}</td>
+          <td>\${item.cantidad || ''}</td>
+          <td>\${item.descripcion || ''}</td>
+          <td>\${item.desea_recogido || ''}</td>
+          <td>—</td>
+          <td><button class="btn-delete" data-id="\${item.id}" data-table="\${table}">Eliminar</button></td>
+        \`;
+        $('#tabla-transporte tbody')?.appendChild(row);
+      }
+    });
+  }
+}

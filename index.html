@@ -15,6 +15,7 @@
     window.location.replace("login.html");
   }
 
+  // Espera a que el DOM esté listo y luego carga script.js dinámicamente
   document.addEventListener("DOMContentLoaded", () => {
     document.getElementById("rol-label").textContent = role;
     document.getElementById("user-info").textContent = user;

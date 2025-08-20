@@ -1,14 +1,11 @@
-// script.js
-// - Render dinámico de campos por propósito
-// - Inserción en tabla por propósito
-// - LECTURA y render de tableros desde Supabase
-// - Logout
-import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/+esm';
+// script.js (versión robusta)
+// - Render dinámico de campos SIN depender de Supabase (para evitar que un fallo de import bloquee el UI)
+// - Importa Supabase de forma diferida solo cuando se va a usar (submit / lecturas)
+// - Inserción y lectura por propósito
 
-const SUPABASE_URL = 'https://sqllpksunzuyzkzgmhuo.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNxbGxwa3N1bnp1eXpremdtaHVvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTUyNjIzNjQsImV4cCI6MjA3MDgzODM2NH0.Oesm9_iFmdJRQORSWL2AQUy3ynQrQX7H0UY5YA2Ow7A';
-const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+let supabase = null;
 
+// === utilidades DOM ===
 const $ = (sel) => document.querySelector(sel);
 const valueOf = (sel) => ($(sel) ? $(sel).value?.trim() : undefined);
 
@@ -61,13 +58,23 @@ function formatTime(ts) {
   } catch { return '—'; }
 }
 
+// Importa Supabase cuando se necesite
+async function initSupabase() {
+  if (supabase) return supabase;
+  const { createClient } = await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/+esm');
+  const SUPABASE_URL = 'https://sqllpksunzuyzkzgmhuo.supabase.co';
+  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNxbGxwa3N1bnp1eXpremdtaHVvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTUyNjIzNjQsImV4cCI6MjA3MDgzODM2NH0.Oesm9_iFmdJRQORSWL2AQUy3ynQrQX7H0UY5YA2Ow7A';
+  supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  return supabase;
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   const form = $('#pickup-form');
   const proposito = $('#proposito');
   const extra = $('#extra-fields');
   const btnLogout = $('#btn-logout');
 
-  // ===== Render dinámico por propósito =====
+  // ===== Render dinámico por propósito (sin supabase) =====
   const renderFields = () => {
     if (!extra) return;
     extra.innerHTML = '';
@@ -78,7 +85,6 @@ document.addEventListener('DOMContentLoaded', () => {
       if (tpl) extra.insertAdjacentHTML('beforeend', tpl());
     });
 
-    // Hook VIN blur si aplica (decodificador externo)
     if (key === 'recogiendo' || key === 'waiter') {
       setTimeout(() => {
         const vinEl = $('#vin');
@@ -90,11 +96,12 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   proposito?.addEventListener('change', renderFields);
-  renderFields();
+  renderFields(); // ← esto debe pintar los campos al cargar
 
   // ===== Envío de formulario (INSERT) =====
   form?.addEventListener('submit', async (e) => {
     e.preventDefault();
+    await initSupabase();
 
     const purpose = (proposito.value || '').toLowerCase();
     const table = TABLE_BY_PURPOSE[purpose];
@@ -109,7 +116,6 @@ document.addEventListener('DOMContentLoaded', () => {
       payload[f] = val || undefined;
     });
 
-    // Validaciones mínimas para Transportación
     if (table === 'transportaciones') {
       if (!payload.nombre) return alert('Nombre es requerido.');
       if (!payload.telefono) return alert('Teléfono es requerido.');
@@ -129,7 +135,7 @@ document.addEventListener('DOMContentLoaded', () => {
       alert(`Guardado correctamente en ${table}`);
       form.reset();
       renderFields();
-      // Recargar tablero específico
+      // recarga tablero específico
       if (table === 'en_sala') loadSala();
       else if (table === 'recogiendo') loadRecogiendo();
       else if (table === 'loaners') loadLoaner();
@@ -142,22 +148,27 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // ===== Logout =====
   btnLogout?.addEventListener('click', async () => {
+    await initSupabase();
     await supabase.auth.signOut();
     sessionStorage.clear();
     window.location.href = 'login.html';
   });
 
-  // ===== Carga inicial de tableros (SELECT) =====
-  loadSala();
-  loadRecogiendo();
-  loadLoaner();
-  loadTransportes();
+  // ===== Carga inicial de tableros =====
+  (async () => {
+    await initSupabase();
+    loadSala();
+    loadRecogiendo();
+    loadLoaner();
+    loadTransportes();
+  })();
 });
 
 // =====================
 // Render: Clientes en Sala (en_sala)
 // =====================
 async function loadSala() {
+  await initSupabase();
   const tbody = document.querySelector('#tabla-waiter tbody');
   if (!tbody) return;
   tbody.innerHTML = '';
@@ -165,10 +176,7 @@ async function loadSala() {
     .from('en_sala')
     .select('*')
     .order('created_at', { ascending: false });
-  if (error) {
-    console.error(error);
-    return;
-  }
+  if (error) { console.error(error); return; }
   data.forEach(row => {
     const tr = document.createElement('tr');
     tr.innerHTML = `
@@ -180,9 +188,7 @@ async function loadSala() {
       <td>${row.descripcion ?? '—'}</td>
       <td>${row.status ?? '—'}</td>
       <td>${row.promise_time ?? '—'}</td>
-      <td>
-        <button data-id="${row.id}" class="btn-accion" disabled>—</button>
-      </td>
+      <td><button data-id="${row.id}" class="btn-accion" disabled>—</button></td>
     `;
     tbody.appendChild(tr);
   });
@@ -192,6 +198,7 @@ async function loadSala() {
 // Render: Recogiendo
 // =====================
 async function loadRecogiendo() {
+  await initSupabase();
   const tbody = document.querySelector('#tabla-recogiendo tbody');
   if (!tbody) return;
   tbody.innerHTML = '';
@@ -199,10 +206,7 @@ async function loadRecogiendo() {
     .from('recogiendo')
     .select('*')
     .order('created_at', { ascending: false });
-  if (error) {
-    console.error(error);
-    return;
-  }
+  if (error) { console.error(error); return; }
   data.forEach(row => {
     const tr = document.createElement('tr');
     tr.innerHTML = `
@@ -214,9 +218,7 @@ async function loadRecogiendo() {
       <td>${row.descripcion ?? '—'}</td>
       <td>${row.status_cajero ?? '—'}</td>
       <td>${row.status_jockey ?? '—'}</td>
-      <td>
-        <button data-id="${row.id}" class="btn-accion" disabled>—</button>
-      </td>
+      <td><button data-id="${row.id}" class="btn-accion" disabled>—</button></td>
     `;
     tbody.appendChild(tr);
   });
@@ -226,6 +228,7 @@ async function loadRecogiendo() {
 // Render: Loaner (loaners)
 // =====================
 async function loadLoaner() {
+  await initSupabase();
   const tbody = document.querySelector('#tabla-loaner tbody');
   if (!tbody) return;
   tbody.innerHTML = '';
@@ -233,10 +236,7 @@ async function loadLoaner() {
     .from('loaners')
     .select('*')
     .order('created_at', { ascending: false });
-  if (error) {
-    console.error(error);
-    return;
-  }
+  if (error) { console.error(error); return; }
   data.forEach(row => {
     const tr = document.createElement('tr');
     tr.innerHTML = `
@@ -244,22 +244,7 @@ async function loadLoaner() {
       <td>${row.nombre ?? '—'}</td>
       <td>${row.hora_cita ?? '—'}</td>
       <td>${row.descripcion ?? '—'}</td>
-      <td>
-        <button data-id="${row.id}" class="btn-accion" disabled>—</button>
-      </td>
-    `;
-    tbody.appendChild(tr);
-  });
-}
-  data.forEach(row => {
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td>${formatTime(row.created_at)}</td>
-      <td>${row.nombre ?? '—'}</td>
-      <td>${row.descripcion ?? '—'}</td>
-      <td>
-        <button data-id="${row.id}" class="btn-accion" disabled>—</button>
-      </td>
+      <td><button data-id="${row.id}" class="btn-accion" disabled>—</button></td>
     `;
     tbody.appendChild(tr);
   });
@@ -269,6 +254,7 @@ async function loadLoaner() {
 // Render: Transportación (transportaciones)
 // =====================
 async function loadTransportes() {
+  await initSupabase();
   const tbody = document.querySelector('#tabla-transporte tbody');
   if (!tbody) return;
   tbody.innerHTML = '';
@@ -276,10 +262,7 @@ async function loadTransportes() {
     .from('transportaciones')
     .select('*')
     .order('created_at', { ascending: false });
-  if (error) {
-    console.error(error);
-    return;
-  }
+  if (error) { console.error(error); return; }
   data.forEach(row => {
     const tr = document.createElement('tr');
     tr.innerHTML = `
@@ -291,9 +274,7 @@ async function loadTransportes() {
       <td>${row.descripcion ?? '—'}</td>
       <td>${row.desea_recogido ?? '—'}</td>
       <td>${row.asignado ?? '—'}</td>
-      <td>
-        <button data-id="${row.id}" class="btn-accion" disabled>—</button>
-      </td>
+      <td><button data-id="${row.id}" class="btn-accion" disabled>—</button></td>
     `;
     tbody.appendChild(tr);
   });

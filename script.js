@@ -43,10 +43,10 @@ function canViewAllTables(role) {
 function allowedTablesForRole(role) {
   if (canViewAllTables(role)) return ['en_sala','recogiendo','loaners','transportaciones'];
   role = (role||'').toLowerCase();
+  if (role === 'admin' || role === 'cajero') return ['recogiendo', 'en_sala'];
   if (role === 'jockey') return ['recogiendo'];
   if (role === 'loaner' || role === 'loaners') return ['loaners'];
   if (role === 'transportación' || role === 'transportacion') return ['transportaciones'];
-  // (No existe rol "Waiter"; solo Admin/Cajero acceden a en_sala)
   return [];
 }
 function canDelete(table, role) {

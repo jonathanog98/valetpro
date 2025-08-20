@@ -121,27 +121,36 @@ async function decodeVinAndFill(){
 }
 
 // ===== Render de formulario según rol/propósito =====
-function renderFields(){
-  const extra = $('#extra-fields'), proposito = $('#proposito');
-  if (!extra || !proposito) return;
-  // Limitar opciones del select por rol (en_sala solo Admin/Cajero)
-  const allowed = new Set(allowedTablesForRole(ROLE));
-  [...proposito.options].forEach(opt => {
-    const t = TABLE_BY_PURPOSE[(opt.value||'').toLowerCase()];
-    opt.disabled = !!t && !allowed.has(t);
-  });
-  if (proposito.selectedOptions[0]?.disabled) {
-    const firstAllowed = [...proposito.options].find(o => !o.disabled);
-    if (firstAllowed) proposito.value = firstAllowed.value;
+function renderFields() {
+  const form = document.getElementById("pickup-form");
+  if (!form) return;
+  const select = document.getElementById("proposito");
+  const container = document.getElementById("extra-fields");
+  container.innerHTML = '';
+  const value = select.value;
+
+  const fields = FIELDS_BY_PURPOSE[value] || [];
+  for (const field of fields) {
+    const div = document.createElement("div");
+    const label = document.createElement("label");
+    label.textContent = field.label;
+    const input = document.createElement(field.type === "select" ? "select" : "input");
+    input.id = field.id;
+    input.name = field.id;
+    if (field.type !== "select") {
+      input.type = field.type || "text";
+    } else {
+      for (const opt of field.options || []) {
+        const option = document.createElement("option");
+        option.value = option.textContent = opt;
+        input.appendChild(option);
+      }
+    }
+    input.required = true;
+    div.appendChild(label);
+    div.appendChild(input);
+    container.appendChild(div);
   }
-  // Campos
-  extra.innerHTML = '';
-  const key = (proposito.value||'').toLowerCase();
-  (FIELDS_BY_PURPOSE[key]||[]).forEach(f => {
-    const tpl = fieldTemplates[f];
-    if (tpl) extra.insertAdjacentHTML('beforeend', tpl());
-  });
-  if (key==='recogiendo' || key==='waiter') { $('#vin')?.addEventListener('blur', decodeVinAndFill); }
 }
 
 // ===== Mostrar/Ocultar tableros por rol =====

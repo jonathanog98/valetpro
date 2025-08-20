@@ -1,8 +1,10 @@
 // script.js — Formulario siempre visible + VIN→Modelo + inserción a tablas por propósito
 let supabase = null;
 
+// ===== Helpers DOM =====
 const $  = (sel) => document.querySelector(sel);
 
+// ===== Mapas por propósito (claves EXACTAS como en index.html) =====
 const TABLE_BY_PURPOSE = {
   'Recogiendo': 'recogiendo',
   'En sala': 'en_sala',
@@ -11,12 +13,13 @@ const TABLE_BY_PURPOSE = {
 };
 
 const FIELDS_BY_PURPOSE = {
-  'Recogiendo': ['vin','tag','modelo','color','asesor','descripcion'],
-  'En sala':    ['vin','tag','modelo','color','asesor','descripcion','promise_time'],
+  'Recogiendo': ['tag','vin','modelo','color','asesor','descripcion'],
+  'En sala':    ['tag','vin','modelo','color','asesor','descripcion','promise_time'],
   'Loaner':     ['nombre','hora_cita','descripcion'],
   'Transportación': ['nombre','telefono','direccion','cantidad','descripcion','desea_recogido']
 };
 
+// Plantillas de campos
 const fieldTemplates = {
   vin:         () => `<label>VIN <input id="vin" maxlength="17" type="text" placeholder="17 caracteres"/></label>`,
   tag:         () => `<label>TAG <input id="tag" type="text"/></label>`,
@@ -24,22 +27,26 @@ const fieldTemplates = {
   color:       () => `<label>Color <input id="color" type="text"/></label>`,
   asesor:      () => `<label>Asesor <input id="asesor" type="text"/></label>`,
   descripcion: () => `<label>Descripción <input id="descripcion" type="text"/></label>`,
+
   promise_time:() => `<label>Promise Time <input id="promise_time" type="time"/></label>`,
+
   nombre:      () => `<label>Nombre <input id="nombre" type="text"/></label>`,
   telefono:    () => `<label>Teléfono <input id="telefono" type="tel"/></label>`,
   direccion:   () => `<label>Dirección <input id="direccion" type="text"/></label>`,
   cantidad:    () => `<label>Cantidad <input id="cantidad" type="number" min="1" step="1"/></label>`,
   hora_cita:   () => `<label>Hora de la Cita <input id="hora_cita" type="time"/></label>`,
-  desea_recogido: () => \`
+
+  desea_recogido: () => `
     <label>¿Desea recogido?
       <select id="desea_recogido">
         <option value="">Seleccione...</option>
         <option value="Sí">Sí</option>
         <option value="No">No</option>
       </select>
-    </label>\`
+    </label>`
 };
 
+// ===== Supabase init (usa tu URL y ANON KEY) =====
 async function initSupabase(){
   if (supabase) return supabase;
   const { createClient } = await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/+esm');
@@ -49,13 +56,14 @@ async function initSupabase(){
   return supabase;
 }
 
+// ===== VIN decoder (NHTSA) =====
 async function decodeVinAndFill(){
   const vinEl = $('#vin'), modeloEl = $('#modelo');
   if (!vinEl || !modeloEl) return;
   const vin = vinEl.value.trim();
   if (vin.length < 11) return;
   try{
-    const resp = await fetch(\`https://vpic.nhtsa.dot.gov/api/vehicles/decodevinvalues/\${encodeURIComponent(vin)}?format=json\`);
+    const resp = await fetch(`https://vpic.nhtsa.dot.gov/api/vehicles/decodevinvalues/${encodeURIComponent(vin)}?format=json`);
     const data = await resp.json();
     const modelo = data?.Results?.[0]?.Model || '';
     modeloEl.value = modelo || 'ModeloDesconocido';
@@ -65,6 +73,7 @@ async function decodeVinAndFill(){
   }
 }
 
+// ===== Render dinámico del formulario =====
 function renderFields(){
   const extra = $('#extra-fields');
   const proposito = $('#proposito');
@@ -84,18 +93,23 @@ function renderFields(){
   }
 }
 
+// ===== Submit: inserta en la tabla correcta =====
 async function handleSubmit(e){
   e.preventDefault();
   await initSupabase();
 
+  // Validar sesión de Supabase (si usas auth)
   try {
     const { data: sessionData } = await supabase.auth.getSession();
     if (!sessionData?.session) {
+      // Si no usas auth, puedes comentar estas 2 líneas
       alert('Tu sesión no está activa. Inicia sesión.');
       location.href = 'login.html';
       return;
     }
-  } catch {}
+  } catch {
+    // Si no tienes auth configurado, no bloquees el submit
+  }
 
   const proposito = $('#proposito');
   const table = TABLE_BY_PURPOSE[proposito.value];
@@ -105,6 +119,7 @@ async function handleSubmit(e){
   const payload = {};
 
   fields.forEach(f => {
+    // En en_sala/recogiendo NO guardamos VIN, solo lo usamos para autocompletar modelo
     if ((table==='en_sala' || table==='recogiendo') && f==='vin') return;
     const el = document.getElementById(f);
     if (!el) return;
@@ -113,6 +128,7 @@ async function handleSubmit(e){
     payload[f] = v || null;
   });
 
+  // Validaciones mínimas por propósito
   if (table==='transportaciones') {
     if (!payload.nombre) return alert('Nombre es requerido.');
     if (!payload.telefono) return alert('Teléfono es requerido.');
@@ -122,123 +138,17 @@ async function handleSubmit(e){
     if (!payload.desea_recogido) return alert('Seleccione si desea recogido.');
   }
 
-  const { data: inserted, error } = await supabase.from(table).insert([payload]).select().single();
+  const { error } = await supabase.from(table).insert([payload]);
   if (error) { alert('Error al guardar: ' + (error.message || error)); return; }
 
-  alert(\`Guardado correctamente en \${table}\`);
-  const now = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-  const horaLlegadaReal = new Date();
-  const row = document.createElement('tr');
-  row._horaLlegada = horaLlegadaReal;
-
-  if (table === 'recogiendo') {
-    row.innerHTML = `
-      <td>${now}</td>
-      <td>${payload.tag || ''}</td>
-      <td>${payload.modelo || ''}</td>
-      <td>${payload.color || ''}</td>
-      <td>${payload.asesor || ''}</td>
-      <td>${payload.descripcion || ''}</td>
-      <td>
-        <select class="status-cajero">
-          <option>—</option>
-          <option>Complete</option><option>Tiene Doc.</option><option>No ha pagado</option>
-          <option>Falta Book</option><option>En Camino</option><option>Pert.</option>
-          <option>Dudas</option><option>Se va sin docs.</option><option>Llaves a asesor</option>
-          <option>Test Drive</option><option>Lav. Cortesía</option><option>Llevar a taller</option>
-          <option>Inspección</option><option>Valet</option><option>Poner a cargar</option><option>Grúa</option>
-        </select>
-      </td>
-      <td>
-        <select class="status-jockey">
-          <option>—</option>
-          <option>Arriba</option><option>Subiendo</option><option>Lavado</option>
-          <option>Working</option><option>No Lavar</option><option>Taller</option>
-          <option>Secado</option><option>Ubicada</option><option>Detailing</option><option>Zona Blanca</option>
-        </select>
-      </td>
-      <td><button class="btn-delete" data-id="${inserted.id}" data-table="${table}">Eliminar</button></td>
-    `;
-    $('#tabla-recogiendo tbody')?.appendChild(row);
-
-    const cajeroSel = row.querySelector('.status-cajero');
-    const jockeySel = row.querySelector('.status-jockey');
-
-    function verificarEntrega() {
-      if (cajeroSel.value === 'Complete' && jockeySel.value === 'Arriba') {
-        const horaSalida = new Date();
-        const horaLlegada = row._horaLlegada || new Date();
-        const diffMs = horaSalida - horaLlegada;
-        const diffMin = Math.round(diffMs / 60000);
-
-        const entregadoRow = document.createElement('tr');
-        entregadoRow.innerHTML = `
-          <td>${payload.tag || ''}</td>
-          <td>${payload.modelo || ''}</td>
-          <td>${payload.color || ''}</td>
-          <td>${payload.asesor || ''}</td>
-          <td>${horaLlegada.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</td>
-          <td>${horaSalida.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</td>
-          <td>${diffMin}</td>
-        `;
-        $('#tabla-entregados tbody')?.appendChild(entregadoRow);
-        row.remove();
-      }
-    }
-
-    cajeroSel.addEventListener('change', verificarEntrega);
-    jockeySel.addEventListener('change', verificarEntrega);
-  }
-
-  } else if (table === 'en_sala') {
-    row.innerHTML = `
-      <td>${now}</td>
-      <td>${payload.tag || ''}</td>
-      <td>${payload.modelo || ''}</td>
-      <td>${payload.color || ''}</td>
-      <td>${payload.asesor || ''}</td>
-      <td>${payload.descripcion || ''}</td>
-      <td>
-        <select class="status-general">
-          <option>—</option>
-          <option>Falta Book</option><option>Status asesor</option>
-          <option>Cargando</option><option>Complete</option>
-          <option>Grúa</option><option>Call Center</option>
-        </select>
-      </td>
-      <td>${payload.promise_time || ''}</td>
-      <td><button class="btn-delete" data-id="${inserted.id}" data-table="${table}">Eliminar</button></td>
-    `;
-    $('#tabla-waiter tbody')?.appendChild(row);
-
+  alert(`Guardado correctamente en ${table}`);
   $('#pickup-form')?.reset();
   renderFields();
 }
 
-document.addEventListener('click', async function(e) {
-  if (!e.target.matches('.btn-delete')) return;
-
-  const btn = e.target;
-  const id = btn.getAttribute('data-id');
-  const table = btn.getAttribute('data-table');
-
-  if (!id || !table) return;
-
-  const confirmed = confirm('¿Seguro que deseas eliminar este registro?');
-  if (!confirmed) return;
-
-  await initSupabase();
-  const { error } = await supabase.from(table).delete().eq('id', id);
-  if (error) {
-    alert('Error al eliminar: ' + error.message);
-    return;
-  }
-
-  btn.closest('tr')?.remove();
-});
-
+// ===== Init =====
 document.addEventListener('DOMContentLoaded', () => {
   $('#proposito')?.addEventListener('change', renderFields);
   $('#pickup-form')?.addEventListener('submit', handleSubmit);
-  renderFields();
+  renderFields(); // Render inicial
 });

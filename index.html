@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -23,6 +22,9 @@
         const btn = document.getElementById("admin-btn");
         if (btn) btn.style.display = "";
       }
+      if (role === "admin" || role === "cajero") {
+        document.getElementById("pickup-form").style.display = "block";
+      }
     });
   </script>
 </head>
@@ -44,14 +46,14 @@
     <aside class="sidebar">
       <div class="panel">
         <h3>Crear Pickup</h3>
-        <form id="pickup-form" class="create-form">
+        <form id="pickup-form" class="create-form" style="display:none;">
           <label for="proposito">Propósito</label>
           <select id="proposito" required>
             <option value="">Seleccione uno</option>
-<option value="Recogiendo">Recogiendo</option>
-<option value="En sala">En sala</option>
-<option value="Loaner">Loaner</option>
-<option value="Transportación">Transportación</option>
+            <option value="Recogiendo">Recogiendo</option>
+            <option value="En sala">Waiter</option>
+            <option value="Loaner">Loaner</option>
+            <option value="Transportación">Transportación</option>
           </select>
 
           <div class="extra" id="extra-fields">

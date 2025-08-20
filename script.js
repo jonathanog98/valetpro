@@ -418,11 +418,13 @@ if (table === "en_sala" && field === "status" && inp.value === "Falta Book") {
     const asesor = cells[4]?.textContent || '';
     const descripcion = "Migrado desde en_sala";
 
-    await initSupabase();
-    await supabase.from("recogiendo").insert([{ tag, modelo, color, asesor, descripcion }]);
-    const id = inp.dataset.id;
-    await supabase.from("en_sala").delete().eq("id", id);
-    loadSala();
+(async () => {
+  await initSupabase();
+  await supabase.from("recogiendo").insert([{ tag, modelo, color, asesor, descripcion }]);
+  const id = inp.dataset.id;
+  await supabase.from("en_sala").delete().eq("id", id);
+  loadSala();
+})();
     loadRecogiendo();
   }
   if (allowed.has('loaners')) loadLoaner();

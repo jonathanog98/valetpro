@@ -1,33 +1,6 @@
 // script.js — SIN rol "Waiter": VIN→Modelo (NHTSA) + permisos por matriz + delete + updates puntuales
 let supabase = null;
 
-const STATUS_CAJERO_OPTIONS = [
-  "Complete", "Tiene Doc.", "No ha pagado", "Falta Book", "En Camino", "Pert.",
-  "Dudas", "Se va sin docs.", "Llaves a asesor", "Test Drive", "Lav. Cortesía",
-  "Llevar a taller", "Inspección", "Valet", "Poner a cargar", "Grúa"
-];
-const STATUS_JOCKEY_OPTIONS = [
-  "Arriba", "Subiendo", "Lavado", "Working", "No Lavar", "Taller", "Secado",
-  "Ubicada", "Detailing", "Zona Blanca"
-];
-const STATUS_EN_SALA_OPTIONS = [
-  "Falta Book", "Status asesor", "Cargando", "Complete", "Grúa", "Call Center"
-];
-function renderSelect(field, options, value, table, id) {
-function getRowClass(createdAt) {
-  try {
-    const minAgo = (Date.now() - new Date(createdAt).getTime()) / 60000;
-    if (minAgo > 10) return "flash-red";
-    if (minAgo > 5) return "flash-yellow";
-  } catch {}
-  return "";
-}
-
-  return `<select data-table="${table}" data-id="${id}" data-field="${field}" class="inp-status">
-    ${options.map(opt => `<option value="${opt}" ${opt===value ? "selected" : ""}>${opt}</option>`).join('')}
-  </select>`;
-}
-
 const $  = (sel) => document.querySelector(sel);
 const $$ = (sel) => Array.from(document.querySelectorAll(sel));
 
@@ -121,36 +94,27 @@ async function decodeVinAndFill(){
 }
 
 // ===== Render de formulario según rol/propósito =====
-function renderFields() {
-  const form = document.getElementById("pickup-form");
-  if (!form) return;
-  const select = document.getElementById("proposito");
-  const container = document.getElementById("extra-fields");
-  container.innerHTML = '';
-  const value = select.value;
-
-  const fields = FIELDS_BY_PURPOSE[value] || [];
-  for (const field of fields) {
-    const div = document.createElement("div");
-    const label = document.createElement("label");
-    label.textContent = field.label;
-    const input = document.createElement(field.type === "select" ? "select" : "input");
-    input.id = field.id;
-    input.name = field.id;
-    if (field.type !== "select") {
-      input.type = field.type || "text";
-    } else {
-      for (const opt of field.options || []) {
-        const option = document.createElement("option");
-        option.value = option.textContent = opt;
-        input.appendChild(option);
-      }
-    }
-    input.required = true;
-    div.appendChild(label);
-    div.appendChild(input);
-    container.appendChild(div);
+function renderFields(){
+  const extra = $('#extra-fields'), proposito = $('#proposito');
+  if (!extra || !proposito) return;
+  // Limitar opciones del select por rol (en_sala solo Admin/Cajero)
+  const allowed = new Set(allowedTablesForRole(ROLE));
+  [...proposito.options].forEach(opt => {
+    const t = TABLE_BY_PURPOSE[(opt.value||'').toLowerCase()];
+    opt.disabled = !!t && !allowed.has(t);
+  });
+  if (proposito.selectedOptions[0]?.disabled) {
+    const firstAllowed = [...proposito.options].find(o => !o.disabled);
+    if (firstAllowed) proposito.value = firstAllowed.value;
   }
+  // Campos
+  extra.innerHTML = '';
+  const key = (proposito.value||'').toLowerCase();
+  (FIELDS_BY_PURPOSE[key]||[]).forEach(f => {
+    const tpl = fieldTemplates[f];
+    if (tpl) extra.insertAdjacentHTML('beforeend', tpl());
+  });
+  if (key==='recogiendo' || key==='waiter') { $('#vin')?.addEventListener('blur', decodeVinAndFill); }
 }
 
 // ===== Mostrar/Ocultar tableros por rol =====
@@ -177,20 +141,20 @@ async function updateField(table, id, patch){
 
 // ===== SELECT + render por tabla (con botones según rol) =====
 async function loadSala(){ await initSupabase(); const tb=$('#tabla-waiter tbody'); if(!tb) return; tb.innerHTML='';
-  const {data,error}=await supabase.from('en_sala').select('*').order('created_at',{ascending:false}); if(error){console.error(error);return;}
+  const {data,error}=await supabase.from('en_sala').select('*').order('created_at',{ascending:true}); if(error){console.error(error);return;}
   data.forEach(r=>{
     const canDel = canDelete('en_sala', ROLE);
     const canSts = canUpdateEnSalaStatus(ROLE);
-    const statusSel = canSts ? renderSelect("status", STATUS_EN_SALA_OPTIONS, r.status, "en_sala", r.id) : (r.status??"—");
     const canPrm = canUpdatePromiseTime(ROLE);
-    const rowClass = getRowClass(r.created_at);
-    tb.insertAdjacentHTML('beforeend',`<tr class="${rowClass}">
+    tb.insertAdjacentHTML('beforeend',`<tr>
       <td>${fmtTime(r.created_at)}</td>
       <td>${r.tag??'—'}</td>
       <td>${r.modelo??'—'}</td>
       <td>${r.color??'—'}</td>
       <td>${r.asesor??'—'}</td>
-      <td>${statusSel}
+      <td>${ canSts
+<td>${ canSts ? `<select data-table="en_sala" data-id="${{r.id}}" data-field="status" class="inp-status"><option value="Status asesor" ${r.status==='''Status asesor'''?'selected':''}>Status asesor</option><option value="Working" ${r.status==='''Working'''?'selected':''}>Working</option><option value="Asignado" ${r.status==='''Asignado'''?'selected':''}>Asignado</option><option value="Cargando" ${r.status==='''Cargando'''?'selected':''}>Cargando</option><option value="Supervisor" ${r.status==='''Supervisor'''?'selected':''}>Supervisor</option><option value="Complete" ${r.status==='''Complete'''?'selected':''}>Complete</option><option value="Falta Book" ${r.status==='''Falta Book'''?'selected':''}>Falta Book</option><option value="Grúa" ${r.status==='''Grúa'''?'selected':''}>Grúa</option><option value="Call Center" ${r.status==='''Call Center'''?'selected':''}>Call Center</option><option value="Inspección" ${r.status==='''Inspección'''?'selected':''}>Inspección</option></select>` : (r.status??'—') }</td>
+          : (r.status??'—') }
       </td>
       <td>${ canPrm
           ? `<input type="time" data-table="en_sala" data-id="${r.id}" data-field="promise_time" class="inp-time" value="${(r.promise_time||'').toString().slice(11,16)}" />`
@@ -202,34 +166,30 @@ async function loadSala(){ await initSupabase(); const tb=$('#tabla-waiter tbody
 }
 
 async function loadRecogiendo(){ await initSupabase(); const tb=$('#tabla-recogiendo tbody'); if(!tb) return; tb.innerHTML='';
-  const {data,error}=await supabase.from('recogiendo').select('*').order('created_at',{ascending:false}); if(error){console.error(error);return;}
+  const {data,error}=await supabase.from('recogiendo').select('*').order('created_at',{ascending:true}); if(error){console.error(error);return;}
   data.forEach(r=>{
     const canDel = canDelete('recogiendo', ROLE);
     const canSC  = canUpdateCajeroStatus(ROLE);
     const canSJ  = canUpdateJockeyStatus(ROLE);
-    const cajeroSel = canSC ? renderSelect("status_cajero", STATUS_CAJERO_OPTIONS, r.status_cajero, "recogiendo", r.id) : (r.status_cajero??"—");
-    const jockeySel = canSJ ? renderSelect("status_jockey", STATUS_JOCKEY_OPTIONS, r.status_jockey, "recogiendo", r.id) : (r.status_jockey??"—");
-    const rowClass = getRowClass(r.created_at);
-    tb.insertAdjacentHTML('beforeend',`<tr class="${rowClass}">
+    tb.insertAdjacentHTML('beforeend',`<tr>
       <td>${fmtTime(r.created_at)}</td>
       <td>${r.tag??'—'}</td>
       <td>${r.modelo??'—'}</td>
       <td>${r.color??'—'}</td>
       <td>${r.asesor??'—'}</td>
       <td>${r.descripcion??'—'}</td>
-      <td>${cajeroSel}</td>
-      <td>${jockeySel}</td>
+<td>${ canSC ? `<select data-table="recogiendo" data-id="${{r.id}}" data-field="status_cajero" class="inp-status"><option value="Complete" ${r.status_cajero==='''Complete'''?'selected':''}>Complete</option><option value="Tiene Doc" ${r.status_cajero==='''Tiene Doc'''?'selected':''}>Tiene Doc</option><option value="No ha pagado" ${r.status_cajero==='''No ha pagado'''?'selected':''}>No ha pagado</option><option value="Falta Book" ${r.status_cajero==='''Falta Book'''?'selected':''}>Falta Book</option><option value="En camino" ${r.status_cajero==='''En camino'''?'selected':''}>En camino</option><option value="Pert." ${r.status_cajero==='''Pert.'''?'selected':''}>Pert.</option><option value="Dudas" ${r.status_cajero==='''Dudas'''?'selected':''}>Dudas</option><option value="Se va sin docs." ${r.status_cajero==='''Se va sin docs.'''?'selected':''}>Se va sin docs.</option><option value="Llaves a asesor" ${r.status_cajero==='''Llaves a asesor'''?'selected':''}>Llaves a asesor</option><option value="Lav. Cortesía" ${r.status_cajero==='''Lav. Cortesía'''?'selected':''}>Lav. Cortesía</option><option value="Test Drive" ${r.status_cajero==='''Test Drive'''?'selected':''}>Test Drive</option><option value="Llevar a taller" ${r.status_cajero==='''Llevar a taller'''?'selected':''}>Llevar a taller</option><option value="Inspección" ${r.status_cajero==='''Inspección'''?'selected':''}>Inspección</option><option value="Valet" ${r.status_cajero==='''Valet'''?'selected':''}>Valet</option><option value="Poner a cargar" ${r.status_cajero==='''Poner a cargar'''?'selected':''}>Poner a cargar</option><option value="Grúa" ${r.status_cajero==='''Grúa'''?'selected':''}>Grúa</option></select>` : (r.status_cajero??'—') }</td>
+<td>${ canSJ ? `<select data-table="recogiendo" data-id="${{r.id}}" data-field="status_jockey" class="inp-status"><option value="Arriba" ${r.status_jockey==='''Arriba'''?'selected':''}>Arriba</option><option value="Subiendo" ${r.status_jockey==='''Subiendo'''?'selected':''}>Subiendo</option><option value="Lavado" ${r.status_jockey==='''Lavado'''?'selected':''}>Lavado</option><option value="Working" ${r.status_jockey==='''Working'''?'selected':''}>Working</option><option value="No Lavar" ${r.status_jockey==='''No Lavar'''?'selected':''}>No Lavar</option><option value="Taller" ${r.status_jockey==='''Taller'''?'selected':''}>Taller</option><option value="Secado" ${r.status_jockey==='''Secado'''?'selected':''}>Secado</option><option value="Ubicada" ${r.status_jockey==='''Ubicada'''?'selected':''}>Ubicada</option><option value="Detailing" ${r.status_jockey==='''Detailing'''?'selected':''}>Detailing</option><option value="Zona Blanca" ${r.status_jockey==='''Zona Blanca'''?'selected':''}>Zona Blanca</option></select>` : (r.status_jockey??'—') }</td>
       <td>${ canDel ? `<button class="btn-del" data-table="recogiendo" data-id="${r.id}">Eliminar</button>` : '—' }</td>
     </tr>`);
   });
 }
 
 async function loadLoaner(){ await initSupabase(); const tb=$('#tabla-loaner tbody'); if(!tb) return; tb.innerHTML='';
-  const {data,error}=await supabase.from('loaners').select('*').order('created_at',{ascending:false}); if(error){console.error(error);return;}
+  const {data,error}=await supabase.from('loaners').select('*').order('created_at',{ascending:true}); if(error){console.error(error);return;}
   data.forEach(r=>{
     const canDel = canDelete('loaners', ROLE);
-    const rowClass = getRowClass(r.created_at);
-    tb.insertAdjacentHTML('beforeend',`<tr class="${rowClass}">
+    tb.insertAdjacentHTML('beforeend',`<tr>
       <td>${fmtTime(r.created_at)}</td>
       <td>${r.nombre??'—'}</td>
       <td>${r.hora_cita??'—'}</td>
@@ -240,12 +200,11 @@ async function loadLoaner(){ await initSupabase(); const tb=$('#tabla-loaner tbo
 }
 
 async function loadTransportes(){ await initSupabase(); const tb=$('#tabla-transporte tbody'); if(!tb) return; tb.innerHTML='';
-  const {data,error}=await supabase.from('transportaciones').select('*').order('created_at',{ascending:false}); if(error){console.error(error);return;}
+  const {data,error}=await supabase.from('transportaciones').select('*').order('created_at',{ascending:true}); if(error){console.error(error);return;}
   data.forEach(r=>{
     const canDel = canDelete('transportaciones', ROLE);
     const canAsg = canChangeAsignado(ROLE);
-    const rowClass = getRowClass(r.created_at);
-    tb.insertAdjacentHTML('beforeend',`<tr class="${rowClass}">
+    tb.insertAdjacentHTML('beforeend',`<tr>
       <td>${fmtTime(r.created_at)}</td>
       <td>${r.nombre??'—'}</td>
       <td>${r.telefono??'—'}</td>
@@ -298,29 +257,7 @@ async function handleSubmit(e){
 
   alert(`Guardado correctamente en ${table}`);
   $('#pickup-form')?.reset(); renderFields();
-  if (table==='en_sala') loadSala(); else if (table==='recogiendo') loadRecogiendo();
-if (table === "en_sala" && field === "status" && inp.value === "Falta Book") {
-    const row = inp.closest('tr');
-async function migrarPickupDesdeSala(inp) {
-  const row = inp.closest("tr");
-  const cells = row.querySelectorAll("td");
-  const tag = cells[0]?.textContent || '';
-  const modelo = cells[2]?.textContent || '';
-  const color = cells[3]?.textContent || '';
-  const asesor = cells[4]?.textContent || '';
-  const descripcion = "Migrado desde en_sala";
-
-  await initSupabase();
-  await supabase.from("recogiendo").insert([{ tag, modelo, color, asesor, descripcion }]);
-  const id = inp.dataset.id;
-  await supabase.from("en_sala").delete().eq("id", id);
-  loadSala();
-  loadRecogiendo();
-}
-    await supabase.from("en_sala").delete().eq("id", id);
-    loadSala();
-    loadRecogiendo();
-  } else if (table==='loaners') loadLoaner(); else if (table==='transportaciones') loadTransportes();
+  if (table==='en_sala') loadSala(); else if (table==='recogiendo') loadRecogiendo(); else if (table==='loaners') loadLoaner(); else if (table==='transportaciones') loadTransportes();
 }
 
 document.body.addEventListener('click', async (e)=>{
@@ -331,23 +268,7 @@ document.body.addEventListener('click', async (e)=>{
   await initSupabase();
   const { error } = await supabase.from(table).delete().eq('id', id);
   if (error) return alert('No se pudo eliminar: ' + (error.message || error));
-  if (table==='en_sala') loadSala(); else if (table==='recogiendo') loadRecogiendo();
-if (table === "en_sala" && field === "status" && inp.value === "Falta Book") {
-    const row = inp.closest('tr');
-    const cells = row.querySelectorAll('td');
-    const tag = cells[1]?.textContent || '';
-    const modelo = cells[2]?.textContent || '';
-    const color = cells[3]?.textContent || '';
-    const asesor = cells[4]?.textContent || '';
-    const descripcion = "Migrado desde en_sala";
-
-    await initSupabase();
-    await supabase.from("recogiendo").insert([{ tag, modelo, color, asesor, descripcion }]);
-    const id = inp.dataset.id;
-    await supabase.from("en_sala").delete().eq("id", id);
-    loadSala();
-    loadRecogiendo();
-  } else if (table==='loaners') loadLoaner(); else if (table==='transportaciones') loadTransportes();
+  if (table==='en_sala') loadSala(); else if (table==='recogiendo') loadRecogiendo(); else if (table==='loaners') loadLoaner(); else if (table==='transportaciones') loadTransportes();
 });
 
 document.body.addEventListener('change', async (e)=>{
@@ -363,49 +284,6 @@ document.body.addEventListener('change', async (e)=>{
   if (table==='en_sala' && field==='promise_time' && !canUpdatePromiseTime(ROLE)) return;
   if (table==='transportaciones' && field==='asignado' && !canChangeAsignado(ROLE)) return;
   await updateField(table, id, { [field]: inp.value });
-if (table === "recogiendo" && (field === "status_cajero" || field === "status_jockey")) {
-    const row = inp.closest('tr');
-    const id = inp.dataset.id;
-    const cajero = field === "status_cajero" ? inp.value : row.querySelector('[data-field="status_cajero"]')?.value;
-    const jockey = field === "status_jockey" ? inp.value : row.querySelector('[data-field="status_jockey"]')?.value;
-    if (cajero === "Complete" && jockey === "Arriba") {
-      const cells = row.querySelectorAll('td');
-      const tag = cells[1]?.textContent || '';
-      const modelo = cells[2]?.textContent || '';
-      const color = cells[3]?.textContent || '';
-      const asesor = cells[4]?.textContent || '';
-      const now = new Date();
-      const salida = now.toISOString();
-      const llegada = salida;
-      const minutos_espera = 0;
-
-      await initSupabase();
-      await supabase.from("entregados").insert([{
-        tag, modelo, color, asesor,
-        hora_llegada: llegada,
-        hora_salida: salida,
-        minutos_espera
-      }]);
-      await supabase.from("recogiendo").delete().eq("id", id);
-      loadRecogiendo();
-if (table === "en_sala" && field === "status" && inp.value === "Falta Book") {
-    const row = inp.closest('tr');
-    const cells = row.querySelectorAll('td');
-    const tag = cells[1]?.textContent || '';
-    const modelo = cells[2]?.textContent || '';
-    const color = cells[3]?.textContent || '';
-    const asesor = cells[4]?.textContent || '';
-    const descripcion = "Migrado desde en_sala";
-
-    await initSupabase();
-    await supabase.from("recogiendo").insert([{ tag, modelo, color, asesor, descripcion }]);
-    const id = inp.dataset.id;
-    await supabase.from("en_sala").delete().eq("id", id);
-    loadSala();
-    loadRecogiendo();
-  }
-    }
-  }
 });
 
 // ===== Init =====
@@ -418,39 +296,6 @@ document.addEventListener('DOMContentLoaded', ()=>{
   const allowed = new Set(allowedTablesForRole(ROLE));
   if (allowed.has('en_sala')) loadSala();
   if (allowed.has('recogiendo')) loadRecogiendo();
-if (table === "en_sala" && field === "status" && inp.value === "Falta Book") {
-    const row = inp.closest('tr');
-    const cells = row.querySelectorAll('td');
-    const tag = cells[1]?.textContent || '';
-    const modelo = cells[2]?.textContent || '';
-    const color = cells[3]?.textContent || '';
-    const asesor = cells[4]?.textContent || '';
-    const descripcion = "Migrado desde en_sala";
-
-(async () => {
-  await initSupabase();
-  await supabase.from("recogiendo").insert([{ tag, modelo, color, asesor, descripcion }]);
-  const id = inp.dataset.id;
-  await supabase.from("en_sala").delete().eq("id", id);
-  loadSala();
-})();
-    loadRecogiendo();
-  }
   if (allowed.has('loaners')) loadLoaner();
   if (allowed.has('transportaciones')) loadTransportes();
 });
-
-
-function canViewAllTables(role) {
-  role = (role||'').toLowerCase();
-  return role === 'admin' || role === 'cajero';
-}
-
-function allowedTablesForRole(role) {
-  if (canViewAllTables(role)) return ['en_sala','recogiendo','loaners','transportaciones'];
-  role = (role||'').toLowerCase();
-  if (role === 'jockey') return ['recogiendo'];
-  if (role === 'loaner' || role === 'loaners') return ['loaners'];
-  if (role === 'transportación' || role === 'transportacion') return ['transportaciones'];
-  return [];
-}

@@ -10,6 +10,12 @@
     const user = sessionStorage.getItem("usuario");
 
     if (!role || !user) {
+      alert("Tu sesión ha expirado o es inválida. Serás redirigido al login.");
+      sessionStorage.clear();
+      window.location.replace("login.html");
+    }
+
+    if (!role || !user) {
       window.location.replace("login.html");
     } else {
       document.addEventListener('DOMContentLoaded', () => {

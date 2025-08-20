@@ -29,35 +29,33 @@ document.addEventListener('DOMContentLoaded', () => {
       const { data, error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) throw error;
 
-      // 2) Buscar rol
-      const userId = data.user.id;
+      // 2) Buscar rol desde relaciones
+const { data: user_roles, error: rolesError } = await supabase
+  .from('user_roles')
+  .select('role_id')
+  .eq('user_id', userId)
+  .single(); // asumiendo relación 1:1
 
-      const { data: user_roles, error: rolesError } = await supabase
-        .from('user_roles')
-        .select('role_id')
-        .eq('user_id', userId);
+if (rolesError || !user_roles) {
+  throw new Error('Tu cuenta no tiene un rol asignado.');
+}
 
-      if (rolesError) throw rolesError;
-      if (!user_roles || user_roles.length === 0) {
-        throw new Error('No se encontró rol asignado para este usuario.');
-      }
+const roleId = user_roles.role_id;
 
-      const roleId = user_roles[0].role_id;
+const { data: role, error: roleError } = await supabase
+  .from('roles')
+  .select('name')
+  .eq('id', roleId)
+  .single();
 
-      const { data: role, error: roleError } = await supabase
-        .from('roles')
-        .select('name')
-        .eq('id', roleId)
-        .single();
+if (roleError || !role?.name) {
+  throw new Error('No se pudo identificar tu rol. Contacta a un administrador.');
+}
 
-      if (roleError) throw roleError;
-
-      // 3) Guardar en sessionStorage
-      sessionStorage.setItem('usuario', email);
-      sessionStorage.setItem('rol', role.name);
-
-      // 4) Redirigir
-      window.location.href = 'index.html';
+// 3) Guardar rol y redirigir
+sessionStorage.setItem('usuario', email);
+sessionStorage.setItem('rol', role.name);
+window.location.href = 'index.html';
     } catch (err) {
       showMsg(`Error: ${err.message}`);
       console.error(err);

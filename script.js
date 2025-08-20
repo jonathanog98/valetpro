@@ -43,10 +43,10 @@ function canViewAllTables(role) {
 function allowedTablesForRole(role) {
   if (canViewAllTables(role)) return ['en_sala','recogiendo','loaners','transportaciones'];
   role = (role||'').toLowerCase();
-  if (role === 'admin' || role === 'cajero') return ['recogiendo', 'en_sala'];
   if (role === 'jockey') return ['recogiendo'];
   if (role === 'loaner' || role === 'loaners') return ['loaners'];
   if (role === 'transportación' || role === 'transportacion') return ['transportaciones'];
+  // (No existe rol "Waiter"; solo Admin/Cajero acceden a en_sala)
   return [];
 }
 function canDelete(table, role) {
@@ -292,16 +292,22 @@ async function handleSubmit(e){
   if (table==='en_sala') loadSala(); else if (table==='recogiendo') loadRecogiendo();
 if (table === "en_sala" && field === "status" && inp.value === "Falta Book") {
     const row = inp.closest('tr');
-    const cells = row.querySelectorAll('td');
-    const tag = cells[1]?.textContent || '';
-    const modelo = cells[2]?.textContent || '';
-    const color = cells[3]?.textContent || '';
-    const asesor = cells[4]?.textContent || '';
-    const descripcion = "Migrado desde en_sala";
+async function migrarPickupDesdeSala(inp) {
+  const row = inp.closest("tr");
+  const cells = row.querySelectorAll("td");
+  const tag = cells[0]?.textContent || '';
+  const modelo = cells[2]?.textContent || '';
+  const color = cells[3]?.textContent || '';
+  const asesor = cells[4]?.textContent || '';
+  const descripcion = "Migrado desde en_sala";
 
-    await initSupabase();
-    await supabase.from("recogiendo").insert([{ tag, modelo, color, asesor, descripcion }]);
-    const id = inp.dataset.id;
+  await initSupabase();
+  await supabase.from("recogiendo").insert([{ tag, modelo, color, asesor, descripcion }]);
+  const id = inp.dataset.id;
+  await supabase.from("en_sala").delete().eq("id", id);
+  loadSala();
+  loadRecogiendo();
+}
     await supabase.from("en_sala").delete().eq("id", id);
     loadSala();
     loadRecogiendo();

@@ -1,11 +1,12 @@
 <!DOCTYPE html>
+
 <html lang="es">
 <head>
-  <meta charset="utf-8"/>
-  <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-  <title>ValetPro</title>
-  <link href="style.css" rel="stylesheet"/>
-  <script type="module">
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>ValetPro</title>
+<link href="style.css" rel="stylesheet"/>
+<script type="module">
     const role = sessionStorage.getItem("rol");
     const user = sessionStorage.getItem("usuario");
 
@@ -31,93 +32,90 @@
 </head>
 <body>
 <nav class="topbar">
-  <div class="brand">ValetPro</div>
-  <ul class="nav-links">
-    <li><a class="active" href="#">Inicio</a></li>
-  </ul>
-  <div class="userbox">
-    <span class="role-pill" id="rol-label">—</span>
-    <span class="muted" id="user-info"></span>
-    <button id="admin-btn" onclick="location.href='admin.html'" style="display:none;" type="button">Administración</button>
-    <button id="btn-logout" type="button">Salir</button>
-  </div>
+<div class="brand">ValetPro</div>
+<ul class="nav-links">
+<li><a class="active" href="#">Inicio</a></li>
+</ul>
+<div class="userbox">
+<span class="role-pill" id="rol-label">—</span>
+<span class="muted" id="user-info"></span>
+<button id="admin-btn" onclick="location.href='admin.html'" style="display:none;" type="button">Administración</button>
+<button id="btn-logout" type="button">Salir</button>
+</div>
 </nav>
 <div class="layout">
-  <aside class="sidebar">
-    <div class="panel">
-      <h3>Crear Pickup</h3>
-      <form class="create-form" id="pickup-form">
-        <label>Propósito
-          <select id="proposito" required>
-            <option value="Recogiendo" selected>Recogiendo</option>
-            <option value="Waiter">Waiter</option>
-            <option value="Loaner">Loaner</option>
-            <option value="Transportación">Transportación</option>
-          </select>
-        </label>
-        <div class="extra" id="extra-fields">
-          <!-- Campos dinámicos insertados aquí -->
-        </div>
-        <button type="submit">Agregar</button>
-      </form>
-    </div>
-  </aside>
-  <main class="content">
-    <div id="dashboard-tableros" style="margin-top: 40px;">
-      <div class="table-wrapper">
-        <h2>Clientes en Sala</h2>
-        <table id="tabla-waiter">
-          <thead>
-            <tr>
-              <th>Hora</th><th>TAG</th><th>Modelo</th><th>Color</th><th>Asesor</th><th>Descripción</th><th>Status</th><th>Promise Time</th><th>Acciones</th>
-            </tr>
-          </thead>
-          <tbody></tbody>
-        </table>
-      </div>
-      <div class="table-wrapper">
-        <h2>Recogiendo</h2>
-        <table id="tabla-recogiendo">
-          <thead>
-            <tr><th>Hora</th><th>TAG</th><th>Modelo</th><th>Color</th><th>Asesor</th><th>Descripción</th><th>Status Cajero</th><th>Status Jockey</th><th>Acciones</th></tr>
-          </thead>
-          <tbody></tbody>
-        </table>
-      </div>
-      <div class="table-wrapper">
-        <h2>Loaner</h2>
-        <table id="tabla-loaner">
-          <thead><tr><th>Hora</th><th>Nombre Cliente</th><th>Descripción</th><th>Acciones</th></tr></thead>
-          <tbody></tbody>
-        </table>
-      </div>
-      <div class="table-wrapper">
-        <h2>Transportación</h2>
-        <table id="tabla-transporte">
-          <thead><tr><th>Hora</th><th>Nombre</th><th>Teléfono</th><th>Dirección</th><th>Personas</th><th>Asignado</th><th>Acciones</th></tr></thead>
-          <tbody></tbody>
-        </table>
-      </div>
-
-      <div class="table-wrapper">
-        <h2>Autos Entregados <small id="avg-entregados" style="margin-left:12px; opacity:0.7;"></small></h2>
-        <div style="margin:8px 0 12px;">
-          <button id="btn-clear-entregados">Borrar todos</button>
-          <button id="btn-export-entregados">Exportar Excel</button>
-        </div>
-        <table id="tabla-entregados">
-          <thead>
-            <tr><th>TAG</th><th>Modelo</th><th>Color</th><th>Asesor</th><th>Hora Llegada</th><th>Hora Salida</th><th>Tiempo Espera (min)</th></tr>
-          </thead>
-          <tbody></tbody>
-        </table>
-      </div>
-
-    </div>
-  </main>
+<aside class="sidebar">
+<div class="panel">
+<h3>Crear Pickup</h3>
+<form class="create-form" id="pickup-form">
+<label>Propósito
+          <select id="proposito" required="">
+<option selected="" value="Recogiendo">Recogiendo</option>
+<option value="Waiter">Waiter</option>
+<option value="Loaner">Loaner</option>
+<option value="Transportación">Transportación</option>
+</select>
+</label>
+<div class="extra" id="extra-fields">
+<!-- Campos dinámicos insertados aquí -->
 </div>
-
-<script type="module" src="script.js"></script>
+<button type="submit">Agregar</button>
+</form>
+</div>
+</aside>
+<main class="content">
+<div id="dashboard-tableros" style="margin-top: 40px;">
+<div class="table-wrapper">
+<h2>Clientes en Sala</h2>
+<table id="tabla-waiter">
+<thead>
+<tr>
+<th>Hora</th><th>TAG</th><th>Modelo</th><th>Color</th><th>Asesor</th><th>Descripción</th><th>Status</th><th>Promise Time</th><th>Acciones</th>
+</tr>
+</thead>
+<tbody></tbody>
+</table>
+</div>
+<div class="table-wrapper">
+<h2>Recogiendo</h2>
+<table id="tabla-recogiendo">
+<thead>
+<tr><th>Hora</th><th>TAG</th><th>Modelo</th><th>Color</th><th>Asesor</th><th>Descripción</th><th>Status Cajero</th><th>Status Jockey</th><th>Acciones</th></tr>
+</thead>
+<tbody></tbody>
+</table>
+</div>
+<div class="table-wrapper">
+<h2>Loaner</h2>
+<table id="tabla-loaner">
+<thead><tr><th>Hora</th><th>Nombre Cliente</th><th>Descripción</th><th>Acciones</th></tr></thead>
+<tbody></tbody>
+</table>
+</div>
+<div class="table-wrapper">
+<h2>Transportación</h2>
+<table id="tabla-transporte">
+<thead><tr><th>Hora</th><th>Nombre</th><th>Teléfono</th><th>Dirección</th><th>Personas</th><th>Asignado</th><th>Acciones</th></tr></thead>
+<tbody></tbody>
+</table>
+</div>
+<div class="table-wrapper">
+<h2>Autos Entregados <small id="avg-entregados" style="margin-left:12px; opacity:0.7;"></small></h2>
+<div style="margin:8px 0 12px;">
+<button id="btn-clear-entregados">Borrar todos</button>
+<button id="btn-export-entregados">Exportar Excel</button>
+</div>
+<table id="tabla-entregados">
+<thead>
+<tr><th>TAG</th><th>Modelo</th><th>Color</th><th>Asesor</th><th>Hora Llegada</th><th>Hora Salida</th><th>Tiempo Espera (min)</th></tr>
+</thead>
+<tbody></tbody>
+</table>
+</div>
+</div>
+</main>
+</div>
+<script src="script.js" type="module"></script>
 <script type="module">
   const extraFields = document.getElementById('extra-fields');
   const proposito = document.getElementById('proposito');

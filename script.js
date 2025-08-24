@@ -75,6 +75,7 @@ async function decodeVinAndFill(){
 
 // ===== Render dinámico del formulario =====
 function renderFields(){
+  window.renderFields = renderFields;
   const extra = $('#extra-fields');
   const proposito = $('#proposito');
   if (!extra || !proposito) return;
@@ -444,4 +445,3 @@ async function cargarPickupsDesdeSupabase() {
       console.warn('Realtime no disponible aún:', e?.message || e);
     }
   })();
-// === Fin parche refresco + realtime =====================================

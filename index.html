@@ -22,9 +22,12 @@
         const btn = document.getElementById("admin-btn");
         if (btn) btn.style.display = "";
       }
-      if (role === "admin" || role === "cajero") {
-        document.getElementById("pickup-form").style.display = "block";
-      }
+      const panel = document.querySelector(".sidebar .panel");
+if (role !== "admin" && role !== "cajero") {
+  if (panel) panel.style.display = "none";
+} else {
+  document.getElementById("pickup-form")?.style.removeProperty("display");
+}
     });
   </script>
 </head>
@@ -46,7 +49,7 @@
     <aside class="sidebar">
       <div class="panel">
         <h3>Crear Pickup</h3>
-        <form id="pickup-form" class="create-form" style="display:none;">
+        <form id="pickup-form" class="create-form">
           <label for="proposito">Propósito</label>
           <select id="proposito" required>
             <option value="">Seleccione uno</option>

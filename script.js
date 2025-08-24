@@ -252,3 +252,102 @@ async function cargarPickupsDesdeSupabase() {
     });
   }
 }
+
+// === Parche mínimo: submit del formulario por Propósito ==================
+(function () {
+  const $ = (id) => document.getElementById(id);
+
+  function tableByPurpose(p) {
+    if (p === 'Recogiendo') return 'recogiendo';
+    if (p === 'En sala')    return 'en_sala';         // Clientes en Sala (antes Waiter)
+    if (p === 'Loaner')     return 'loaners';
+    if (p === 'Transportación') return 'transportaciones';
+    return null;
+  }
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    const proposito = $('proposito')?.value || '';
+    const table = tableByPurpose(proposito);
+    if (!table) {
+      alert('Selecciona un propósito válido.');
+      return;
+    }
+
+    let payload = {};
+    if (proposito === 'Recogiendo' || proposito === 'En sala') {
+      const tag    = $('tag')?.value?.trim() || '';
+      const modelo = $('modelo')?.value?.trim() || '';
+      const color  = $('color')?.value?.trim() || '';
+      const asesor = $('asesor')?.value?.trim() || '';
+      const desc   = $('descripcion')?.value?.trim() || '';
+
+      if (proposito === 'Recogiendo') {
+        payload = {
+          tag, modelo, color, asesor,
+          descripcion: desc,
+          status_cajero: '--',
+          status_jockey: '--'
+        };
+      } else {
+        payload = {
+          tag, modelo, color, asesor,
+          descripcion: desc,
+          status: '--',
+          promise_time: null
+        };
+      }
+    }
+
+    if (proposito === 'Loaner') {
+      const nombre    = $('nombre')?.value?.trim() || '';
+      const hora_cita = $('hora_cita')?.value || null;
+      const desc      = $('descripcion')?.value?.trim() || '';
+      payload = { nombre_cliente: nombre, hora_cita, descripcion: desc };
+    }
+
+    if (proposito === 'Transportación') {
+      const nombre    = $('nombre')?.value?.trim() || '';
+      const telefono  = $('telefono')?.value?.trim() || '';
+      const direccion = $('direccion')?.value?.trim() || '';
+      const cantidad  = Number($('cantidad')?.value || 1);
+      const desc      = $('descripcion')?.value?.trim() || '';
+      const desea     = !!$('desea-regreso')?.checked;
+      payload = {
+        nombre, telefono, direccion, cantidad,
+        descripcion: desc,
+        desea_recogido: desea
+      };
+    }
+
+    try {
+      const { data, error } = await supabase.from(table).insert([payload]).select();
+      if (error) {
+        console.error('Insert error:', error);
+        alert('No se pudo guardar: ' + (error.message || 'Error desconocido'));
+        return;
+      }
+      const inputs = document.querySelectorAll('#extra-fields input, #extra-fields textarea');
+      inputs.forEach(el => {
+        if (el.type === 'checkbox') el.checked = false;
+        else el.value = '';
+      });
+    } catch (err) {
+      console.error(err);
+      alert('Error inesperado insertando.');
+    }
+  }
+
+  function bindForm() {
+    const form = document.getElementById('pickup-form');
+    if (form && !form.__vp_submitBound) {
+      form.addEventListener('submit', handleSubmit);
+      form.__vp_submitBound = true;
+    }
+  }
+
+  document.addEventListener('DOMContentLoaded', bindForm);
+  const mo = new MutationObserver(bindForm);
+  mo.observe(document.body, { childList: true, subtree: true });
+})();
+// === Fin parche mínimo ===================================================

@@ -151,7 +151,6 @@ document.addEventListener('DOMContentLoaded', () => {
   cargarPickupsDesdeSupabase();
   $('#proposito')?.addEventListener('change', renderFields);
   $('#pickup-form')?.addEventListener('submit', handleSubmit);
-  renderFields(); // Render inicial
 });
 
 

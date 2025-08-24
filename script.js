@@ -252,3 +252,83 @@ async function cargarPickupsDesdeSupabase() {
     });
   }
 }
+
+/* === ValetPro minimal patch (do not remove) ==============================
+   - Ensure default purpose = "Recogiendo" on load
+   - Ensure renderFields() executes on load and on change
+   - Ensure VIN decodes to fill #modelo every time fields are (re)rendered
+   ====================================================================== */
+(function () {
+  if (window.__vinPatchApplied__) return;
+  window.__vinPatchApplied__ = true;
+
+  function attachVinDecoder() {
+    try {
+      const vin = document.getElementById('vin');
+      const modelo = document.getElementById('modelo');
+      if (!vin || !modelo) return;
+
+      // Remove previous listeners by cloning (idempotent attach)
+      const newVin = vin.cloneNode(true);
+      vin.parentNode.replaceChild(newVin, vin);
+
+      newVin.addEventListener('blur', async () => {
+        const v = newVin.value.trim();
+        if (v.length < 5) return;
+        try {
+          const res = await fetch(
+            'https://vpic.nhtsa.dot.gov/api/vehicles/DecodeVinValues/' + encodeURIComponent(v) + '?format=json'
+          );
+          const json = await res.json();
+          const row = json && json.Results && json.Results[0] ? json.Results[0] : null;
+          const val = (row && (row.Model || row.MakeModel || row.Make)) || 'ModeloDesconocido';
+          modelo.value = val;
+        } catch (e) {
+          try { modelo.value = 'ModeloDesconocido'; } catch(_){}
+        }
+      });
+    } catch (_) {}
+  }
+
+  // Wrap existing renderFields (if exists) so we don't modify inner logic
+  var _origRenderFields = (typeof window.renderFields === 'function') ? window.renderFields : (typeof renderFields === 'function' ? renderFields : null);
+  if (_origRenderFields) {
+    window.renderFields = function () {
+      var r = _origRenderFields.apply(this, arguments);
+      // After dynamic fields are inserted, ensure VIN decoder is attached
+      attachVinDecoder();
+      return r;
+    };
+  } else {
+    // If renderFields isn't defined yet, try to hook after it appears
+    const obs = new MutationObserver(() => {
+      if (typeof window.renderFields === 'function') {
+        try {
+          var prev = window.renderFields;
+          window.renderFields = function() {
+            var r = prev.apply(this, arguments);
+            attachVinDecoder();
+            return r;
+          };
+          obs.disconnect();
+        } catch (_) {}
+      }
+    });
+    obs.observe(document.documentElement, { childList: true, subtree: true });
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    try {
+      const sel = document.getElementById('proposito');
+      if (sel && !sel.value) sel.value = 'Recogiendo';
+      if (typeof window.renderFields === 'function') window.renderFields();
+      if (sel && !sel.__vp_changeBound) {
+        sel.addEventListener('change', () => {
+          if (typeof window.renderFields === 'function') window.renderFields();
+        });
+        sel.__vp_changeBound = true;
+      }
+    } catch (_) {}
+  });
+})();
+/* === End ValetPro minimal patch ======================================== */

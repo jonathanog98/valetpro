@@ -50,7 +50,7 @@
           <label for="proposito">Propósito</label>
           <select id="proposito" required>
             <option value="">Seleccione uno</option>
-            <option value="Recogiendo">Recogiendo</option>
+            <option value="Recogiendo" selected>Recogiendo</option>
             <option value="En sala">Waiter</option>
             <option value="Loaner">Loaner</option>
             <option value="Transportación">Transportación</option>
@@ -69,9 +69,19 @@
       <div id="dashboard-tableros" style="margin-top: 40px;">
         <div class="table-wrapper">
           <h2>Clientes en Sala</h2>
-          <table id="tabla-waiter">
+          <table id="tabla-sala">
             <thead>
-              <tr><th>Hora</th><th>TAG</th><th>Modelo</th><th>Color</th><th>Asesor</th><th>Descripción</th><th>Status</th><th>Promise Time</th><th>Acciones</th></tr>
+              <tr>
+                <th>Hora</th>
+                <th>TAG</th>
+                <th>Modelo</th>
+                <th>Color</th>
+                <th>Asesor</th>
+                <th>Descripción</th>
+                <th>Status</th>
+                <th>Promise Time</th>
+                <th>Acciones</th>
+              </tr>
             </thead>
             <tbody></tbody>
           </table>
@@ -81,7 +91,17 @@
           <h2>Recogiendo</h2>
           <table id="tabla-recogiendo">
             <thead>
-              <tr><th>Hora</th><th>TAG</th><th>Modelo</th><th>Color</th><th>Asesor</th><th>Descripción</th><th>Status Cajero</th><th>Status Jockey</th><th>Acciones</th></tr>
+              <tr>
+                <th>Hora</th>
+                <th>TAG</th>
+                <th>Modelo</th>
+                <th>Color</th>
+                <th>Asesor</th>
+                <th>Descripción</th>
+                <th>Status Cajero</th>
+                <th>Status Jockey</th>
+                <th>Acciones</th>
+              </tr>
             </thead>
             <tbody></tbody>
           </table>
@@ -91,7 +111,13 @@
           <h2>Loaner</h2>
           <table id="tabla-loaner">
             <thead>
-              <tr><th>Hora</th><th>Nombre Cliente</th><th>Hora de la Cita</th><th>Descripción</th><th>Acciones</th></tr>
+              <tr>
+                <th>Hora</th>
+                <th>Nombre Cliente</th>
+                <th>Hora de la Cita</th>
+                <th>Descripción</th>
+                <th>Acciones</th>
+              </tr>
             </thead>
             <tbody></tbody>
           </table>
@@ -101,7 +127,17 @@
           <h2>Transportación</h2>
           <table id="tabla-transporte">
             <thead>
-              <tr><th>Hora</th><th>Nombre</th><th>Teléfono</th><th>Dirección</th><th>Cantidad</th><th>Descripción</th><th>¿Desea recogido?</th><th>Asignado</th><th>Acciones</th></tr>
+              <tr>
+                <th>Hora</th>
+                <th>Nombre</th>
+                <th>Teléfono</th>
+                <th>Dirección</th>
+                <th>Cantidad</th>
+                <th>Descripción</th>
+                <th>¿Desea recogido?</th>
+                <th>Asignado</th>
+                <th>Acciones</th>
+              </tr>
             </thead>
             <tbody></tbody>
           </table>
@@ -115,7 +151,15 @@
           </div>
           <table id="tabla-entregados">
             <thead>
-              <tr><th>TAG</th><th>Modelo</th><th>Color</th><th>Asesor</th><th>Hora Llegada</th><th>Hora Salida</th><th>Tiempo Espera (min)</th></tr>
+              <tr>
+                <th>TAG</th>
+                <th>Modelo</th>
+                <th>Color</th>
+                <th>Asesor</th>
+                <th>Hora Llegada</th>
+                <th>Hora Salida</th>
+                <th>Tiempo Espera (min)</th>
+              </tr>
             </thead>
             <tbody></tbody>
           </table>

@@ -170,17 +170,17 @@ async function cargarPickupsDesdeSupabase() {
       const hora = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
 
       if (table === 'recogiendo') {
-        row.innerHTML = \`
-          <td>\${hora}</td>
-          <td>\${item.tag || ''}</td>
-          <td>\${item.modelo || ''}</td>
-          <td>\${item.color || ''}</td>
-          <td>\${item.asesor || ''}</td>
-          <td>\${item.descripcion || ''}</td>
+        row.innerHTML = `
+          <td>${hora}</td>
+          <td>${item.tag || ''}</td>
+          <td>${item.modelo || ''}</td>
+          <td>${item.color || ''}</td>
+          <td>${item.asesor || ''}</td>
+          <td>${item.descripcion || ''}</td>
           <td>
             <select class="status-cajero">
               <option>—</option>
-              <option \${item.status_cajero==='Complete'?'selected':''}>Complete</option>
+              <option ${item.status_cajero==='Complete'?'selected':''}>Complete</option>
               <option>Tiene Doc.</option><option>No ha pagado</option>
               <option>Falta Book</option><option>En Camino</option><option>Pert.</option>
               <option>Dudas</option><option>Se va sin docs.</option><option>Llaves a asesor</option>
@@ -191,25 +191,25 @@ async function cargarPickupsDesdeSupabase() {
           <td>
             <select class="status-jockey">
               <option>—</option>
-              <option \${item.status_jockey==='Arriba'?'selected':''}>Arriba</option>
+              <option ${item.status_jockey==='Arriba'?'selected':''}>Arriba</option>
               <option>Subiendo</option><option>Lavado</option>
               <option>Working</option><option>No Lavar</option><option>Taller</option>
               <option>Secado</option><option>Ubicada</option><option>Detailing</option><option>Zona Blanca</option>
             </select>
           </td>
-          <td><button class="btn-delete" data-id="\${item.id}" data-table="\${table}">Eliminar</button></td>
-        \`;
+          <td><button class="btn-delete" data-id="${item.id}" data-table="${table}">Eliminar</button></td>
+        `;
         $('#tabla-recogiendo tbody')?.appendChild(row);
       }
 
       else if (table === 'en_sala') {
-        row.innerHTML = \`
-          <td>\${hora}</td>
-          <td>\${item.tag || ''}</td>
-          <td>\${item.modelo || ''}</td>
-          <td>\${item.color || ''}</td>
-          <td>\${item.asesor || ''}</td>
-          <td>\${item.descripcion || ''}</td>
+        row.innerHTML = `
+          <td>${hora}</td>
+          <td>${item.tag || ''}</td>
+          <td>${item.modelo || ''}</td>
+          <td>${item.color || ''}</td>
+          <td>${item.asesor || ''}</td>
+          <td>${item.descripcion || ''}</td>
           <td>
             <select class="status-general">
               <option>—</option>
@@ -218,117 +218,37 @@ async function cargarPickupsDesdeSupabase() {
               <option>Grúa</option><option>Call Center</option>
             </select>
           </td>
-          <td>\${item.promise_time || ''}</td>
-          <td><button class="btn-delete" data-id="\${item.id}" data-table="\${table}">Eliminar</button></td>
-        \`;
+          <td>${item.promise_time || ''}</td>
+          <td><button class="btn-delete" data-id="${item.id}" data-table="${table}">Eliminar</button></td>
+        `;
         $('#tabla-waiter tbody')?.appendChild(row);
       }
 
       else if (table === 'loaners') {
-        row.innerHTML = \`
-          <td>\${hora}</td>
-          <td>\${item.nombre || ''}</td>
-          <td>\${item.hora_cita || ''}</td>
-          <td>\${item.descripcion || ''}</td>
-          <td><button class="btn-delete" data-id="\${item.id}" data-table="\${table}">Eliminar</button></td>
-        \`;
+        row.innerHTML = `
+          <td>${hora}</td>
+          <td>${item.nombre || ''}</td>
+          <td>${item.hora_cita || ''}</td>
+          <td>${item.descripcion || ''}</td>
+          <td><button class="btn-delete" data-id="${item.id}" data-table="${table}">Eliminar</button></td>
+        `;
         $('#tabla-loaner tbody')?.appendChild(row);
       }
 
       else if (table === 'transportaciones') {
-        row.innerHTML = \`
-          <td>\${hora}</td>
-          <td>\${item.nombre || ''}</td>
-          <td>\${item.telefono || ''}</td>
-          <td>\${item.direccion || ''}</td>
-          <td>\${item.cantidad || ''}</td>
-          <td>\${item.descripcion || ''}</td>
-          <td>\${item.desea_recogido || ''}</td>
+        row.innerHTML = `
+          <td>${hora}</td>
+          <td>${item.nombre || ''}</td>
+          <td>${item.telefono || ''}</td>
+          <td>${item.direccion || ''}</td>
+          <td>${item.cantidad || ''}</td>
+          <td>${item.descripcion || ''}</td>
+          <td>${item.desea_recogido || ''}</td>
           <td>—</td>
-          <td><button class="btn-delete" data-id="\${item.id}" data-table="\${table}">Eliminar</button></td>
-        \`;
+          <td><button class="btn-delete" data-id="${item.id}" data-table="${table}">Eliminar</button></td>
+        `;
         $('#tabla-transporte tbody')?.appendChild(row);
       }
     });
   }
 }
-
-/* === ValetPro minimal patch (do not remove) ==============================
-   - Ensure default purpose = "Recogiendo" on load
-   - Ensure renderFields() executes on load and on change
-   - Ensure VIN decodes to fill #modelo every time fields are (re)rendered
-   ====================================================================== */
-(function () {
-  if (window.__vinPatchApplied__) return;
-  window.__vinPatchApplied__ = true;
-
-  function attachVinDecoder() {
-    try {
-      const vin = document.getElementById('vin');
-      const modelo = document.getElementById('modelo');
-      if (!vin || !modelo) return;
-
-      // Remove previous listeners by cloning (idempotent attach)
-      const newVin = vin.cloneNode(true);
-      vin.parentNode.replaceChild(newVin, vin);
-
-      newVin.addEventListener('blur', async () => {
-        const v = newVin.value.trim();
-        if (v.length < 5) return;
-        try {
-          const res = await fetch(
-            'https://vpic.nhtsa.dot.gov/api/vehicles/DecodeVinValues/' + encodeURIComponent(v) + '?format=json'
-          );
-          const json = await res.json();
-          const row = json && json.Results && json.Results[0] ? json.Results[0] : null;
-          const val = (row && (row.Model || row.MakeModel || row.Make)) || 'ModeloDesconocido';
-          modelo.value = val;
-        } catch (e) {
-          try { modelo.value = 'ModeloDesconocido'; } catch(_){}
-        }
-      });
-    } catch (_) {}
-  }
-
-  // Wrap existing renderFields (if exists) so we don't modify inner logic
-  var _origRenderFields = (typeof window.renderFields === 'function') ? window.renderFields : (typeof renderFields === 'function' ? renderFields : null);
-  if (_origRenderFields) {
-    window.renderFields = function () {
-      var r = _origRenderFields.apply(this, arguments);
-      // After dynamic fields are inserted, ensure VIN decoder is attached
-      attachVinDecoder();
-      return r;
-    };
-  } else {
-    // If renderFields isn't defined yet, try to hook after it appears
-    const obs = new MutationObserver(() => {
-      if (typeof window.renderFields === 'function') {
-        try {
-          var prev = window.renderFields;
-          window.renderFields = function() {
-            var r = prev.apply(this, arguments);
-            attachVinDecoder();
-            return r;
-          };
-          obs.disconnect();
-        } catch (_) {}
-      }
-    });
-    obs.observe(document.documentElement, { childList: true, subtree: true });
-  }
-
-  document.addEventListener('DOMContentLoaded', () => {
-    try {
-      const sel = document.getElementById('proposito');
-      if (sel && !sel.value) sel.value = 'Recogiendo';
-      if (typeof window.renderFields === 'function') window.renderFields();
-      if (sel && !sel.__vp_changeBound) {
-        sel.addEventListener('change', () => {
-          if (typeof window.renderFields === 'function') window.renderFields();
-        });
-        sel.__vp_changeBound = true;
-      }
-    } catch (_) {}
-  });
-})();
-/* === End ValetPro minimal patch ======================================== */

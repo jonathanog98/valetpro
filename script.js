@@ -284,6 +284,7 @@ async function cargarPickupsDesdeSupabase() {
 
       if (proposito === 'Recogiendo') {
         payload = {
+          hora: currentHour,
           tag, modelo, color, asesor,
           descripcion: desc,
           status_cajero: '--',
@@ -291,6 +292,7 @@ async function cargarPickupsDesdeSupabase() {
         };
       } else {
         payload = {
+          hora: currentHour,
           tag, modelo, color, asesor,
           descripcion: desc,
           status: '--',
@@ -351,3 +353,85 @@ async function cargarPickupsDesdeSupabase() {
   mo.observe(document.body, { childList: true, subtree: true });
 })();
 // === Fin parche mínimo ===================================================
+
+// === Parche mínimo: refresco inmediato + Realtime ========================
+(function () {
+  function refreshAfterInsert(table) {
+    try {
+      // Llama a funciones existentes si están definidas
+      if (typeof window.cargarRecogiendo === 'function' && table === 'recogiendo') {
+        return window.cargarRecogiendo();
+      }
+      if (typeof window.cargarSala === 'function' && table === 'en_sala') {
+        return window.cargarSala();
+      }
+      if (typeof window.cargarLoaners === 'function' && table === 'loaners') {
+        return window.cargarLoaners();
+      }
+      if (typeof window.cargarTransportaciones === 'function' && table === 'transportaciones') {
+        return window.cargarTransportaciones();
+      }
+
+      // Si no existen loaders, reconsulta y hace un append rápido
+      // (fallback ultra simple: recargar la página para ver la data al instante)
+      console.warn('No hay loaders específicos; recargando la página…');
+      setTimeout(() => location.reload(), 150);
+    } catch (e) {
+      console.error('Error al refrescar tablero:', e);
+    }
+  }
+
+  // Hook al insert ya existente: intercepta alert/limpieza y añade refresh
+  (function injectIntoSubmit() {
+    try {
+      const form = document.getElementById('pickup-form');
+      if (!form) return;
+      if (!form.__vp_submitHooked) {
+        form.addEventListener('submit', function () {
+          // Enlazamos un listener de una sola vez para el próximo console log del insert
+          const _log = console.log;
+          console.log = function () {
+            try {
+              const args = Array.from(arguments);
+              if (args && args[0] && typeof args[0] === 'string' && args[0].includes('Insert OK:')) {
+                const table = args[1];
+                refreshAfterInsert(table);
+              }
+            } catch (_) {}
+            _log.apply(console, arguments);
+          };
+        }, { once: true });
+        form.__vp_submitHooked = true;
+      }
+    } catch (_) {}
+  })();
+
+  // Exponer un helper para el bloque de submit original (si lo quieres usar):
+  window.__vp_afterInsert = function (table) {
+    console.log('Insert OK:', table);
+    refreshAfterInsert(table);
+  };
+
+  // Realtime en vivo (si supabase está disponible)
+  try {
+    if (typeof supabase !== 'undefined') {
+      const { data: { user } = { user: null } } = window.supabase?.auth ? (await supabase.auth.getUser()) : { data: { user: null } };
+      const uid = user && user.id ? user.id : null;
+      const channel = supabase.channel('valetpro-realtime');
+      // Escucha inserts de todas las tablas relevantes
+      ['recogiendo','en_sala','loaners','transportaciones'].forEach(tbl => {
+        channel.on('postgres_changes',
+          { event: 'INSERT', schema: 'public', table: tbl },
+          (payload) => {
+            // Si hay RLS por assigned_to, el backend ya filtra; si no, filtramos por usuario si aplica
+            refreshAfterInsert(tbl);
+          }
+        );
+      });
+      channel.subscribe();
+    }
+  } catch (e) {
+    console.warn('Realtime no disponible aún:', e?.message || e);
+  }
+})();
+// === Fin parche refresco + realtime =====================================

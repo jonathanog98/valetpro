@@ -413,25 +413,36 @@ async function cargarPickupsDesdeSupabase() {
   };
 
   // Realtime en vivo (si supabase está disponible)
-  try {
-    if (typeof supabase !== 'undefined') {
-      const { data: { user } = { user: null } } = window.supabase?.auth ? (await supabase.auth.getUser()) : { data: { user: null } };
-      const uid = user && user.id ? user.id : null;
+  // Convertido a versión asíncrona segura (sin await a nivel top)
+  ;(async function setupRealtimeSafe() {
+    try {
+      if (typeof window.supabase === 'undefined') return;
+      const { data: userData } = await supabase.auth.getUser();
+      const user = userData?.user || null;
+
+      // Exponer refresh para uso global si no existe
+      if (typeof window.__vp_refreshAfterInsert !== 'function') {
+        window.__vp_refreshAfterInsert = function (tbl) {
+          try {
+            if (typeof window.cargarRecogiendo === 'function' && tbl === 'recogiendo') return window.cargarRecogiendo();
+            if (typeof window.cargarSala === 'function' && tbl === 'en_sala') return window.cargarSala();
+            if (typeof window.cargarLoaners === 'function' && tbl === 'loaners') return window.cargarLoaners();
+            if (typeof window.cargarTransportaciones === 'function' && tbl === 'transportaciones') return window.cargarTransportaciones();
+            setTimeout(() => location.reload(), 150);
+          } catch (e) { console.error(e); }
+        };
+      }
+
       const channel = supabase.channel('valetpro-realtime');
-      // Escucha inserts de todas las tablas relevantes
       ['recogiendo','en_sala','loaners','transportaciones'].forEach(tbl => {
         channel.on('postgres_changes',
           { event: 'INSERT', schema: 'public', table: tbl },
-          (payload) => {
-            // Si hay RLS por assigned_to, el backend ya filtra; si no, filtramos por usuario si aplica
-            refreshAfterInsert(tbl);
-          }
+          () => window.__vp_refreshAfterInsert(tbl)
         );
       });
       channel.subscribe();
+    } catch (e) {
+      console.warn('Realtime no disponible aún:', e?.message || e);
     }
-  } catch (e) {
-    console.warn('Realtime no disponible aún:', e?.message || e);
-  }
-})();
+  })();
 // === Fin parche refresco + realtime =====================================
